@@ -7,7 +7,7 @@ Based on latest [py-clave](http://github.com/gabalese/py-clave) development rele
 Installation
 ------------
 
-Grab the [latest stable release](). Unpack the tarball and execute:
+Grab the [latest stable release](https://github.com/gabalese/pyepub/archive/master.zip). Unpack the tarball and execute:
 
 ```$ cd pyepub
 $ python setup.py install```
