@@ -9,8 +9,10 @@ Installation
 
 Grab the [latest stable release](https://github.com/gabalese/pyepub/archive/master.zip). Unpack the tarball and execute:
 
-```$ cd pyepub
-$ python setup.py install```
+```
+$ cd pyepub
+$ python setup.py install
+```
 
 This will install the EPUB library in your current python environment as `pyepub`.
 
