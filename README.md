@@ -31,7 +31,7 @@ For example, you can create a new EPUB to write into using the "w" flag:
 
 ```python
 from pyepub import EPUB
-epub = EPUB("newfile.epub, "w")
+epub = EPUB("newfile.epub", "w")
 ```
 
 By default the epub is `open`-ed in read-only mode and exposes json-able dictionary of OPF properties.
