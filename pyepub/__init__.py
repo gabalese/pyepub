@@ -6,11 +6,8 @@ from StringIO import StringIO
 import datetime
 
 try:
-    import lxml.etree.ElementTree as ET
+    from lxml.etree import ElementTree as ET
 except ImportError:
-    try:
-        import xml.etree.cElementTree as ET
-    except ImportError:
         import xml.etree.ElementTree as ET
 
 
