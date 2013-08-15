@@ -1,11 +1,18 @@
-import zipfile as ZIP
+import zipfile
 import os
 import re
 import uuid
 from StringIO import StringIO
 import datetime
 
-import xml.etree.ElementTree as ET
+try:
+    import lxml.etree.ElementTree as ET
+except ImportError:
+    try:
+        import xml.etree.cElementTree as ET
+    except ImportError:
+        import xml.etree.ElementTree as ET
+
 
 TMP = {"opf": None, "ncx": None}
 FLO = None
@@ -25,7 +32,7 @@ class InvalidEpub(Exception):
     pass
 
 
-class EPUB(ZIP.ZipFile):
+class EPUB(zipfile.ZipFile):
     """
     EPUB file representation class.
 
@@ -41,21 +48,23 @@ class EPUB(ZIP.ZipFile):
         """
         if mode == "w":
             if not isinstance(filename, StringIO):
-                assert not os.path.exists(filename), "Can't overwrite existing file: %s" % filename
+                assert not os.path.exists(filename), \
+                    "Can't overwrite existing file: %s" % filename
             self.filename = filename
-            ZIP.ZipFile.__init__(self, self.filename, mode="w")
+            zipfile.ZipFile.__init__(self, self.filename, mode="w")
             self.__init__write()
         elif mode == "a":
-            assert not isinstance(filename, StringIO), "Can't append to StringIO object: %s" % filename
+            assert not isinstance(filename, StringIO), \
+                "Can't append to StringIO object, use write instead: %s" % filename
             tmp = open(filename, "r")  # ensure that the input file is never-ever overwritten
             tmp.seek(0)
             initfile = StringIO()
             initfile.write(tmp.read())
             tmp.close()
-            ZIP.ZipFile.__init__(self, initfile, mode="a")
+            zipfile.ZipFile.__init__(self, initfile, mode="a")
             self.__init__read(initfile)
         else:  # retrocompatibility?
-            ZIP.ZipFile.__init__(self, filename, mode="r")
+            zipfile.ZipFile.__init__(self, filename, mode="r")
             self.__init__read(filename)
 
     def __init__read(self, filename):
@@ -102,7 +111,7 @@ class EPUB(ZIP.ZipFile):
 
         # Get id of the cover in <meta name="cover" />
         try:
-            coverid = self.opf.find('.//*[@name="cover"]').get("content")
+            coverid = self.opf.find('.//{0}meta[@name="cover"]'.format(NAMESPACE["opf"])).get("content")
         except AttributeError:
             # It's a facultative field, after all
             coverid = None
@@ -125,18 +134,19 @@ class EPUB(ZIP.ZipFile):
 
         # Document identifier
         try:
-            self.id = self.opf.find('.//*[@id="{0}"]'.format(self.opf.get("unique-identifier"))).text
+            self.id = self.opf.find('.//{0}identifier[@id="{1}"]'.format(NAMESPACE["dc"],
+                                                                         self.opf.get("unique-identifier"))).text
         except AttributeError:
             raise InvalidEpub  # Cannot process an EPUB without unique-identifier
                                # attribute of the package element
         # Get and parse the TOC
         toc_id = self.opf[2].get("toc")
-        expr = ".//*[@id='{0:s}']".format(toc_id)
+        expr = ".//{0}item[@id='{1:s}']".format(NAMESPACE["opf"], toc_id)
         toc_name = self.opf.find(expr).get("href")
-        self.ncx_path = self.root_folder + "/" + toc_name
+        self.ncx_path = os.path.join(self.root_folder, toc_name)
         self.ncx = ET.fromstring(self.read(self.ncx_path))
         self.contents = [{"name": i[0][0].text or "None",           # Build a list of toc elements
-                          "src": self.root_folder + "/" + i[1].get("src"),
+                          "src": os.path.join(self.root_folder, i[1].get("src")),
                           "id":i.get("id")}
                          for i in self.ncx.iter("{0}navPoint".format(NAMESPACE["ncx"]))]    # The iter method
                                                                                             # loops over nested
@@ -177,7 +187,7 @@ class EPUB(ZIP.ZipFile):
         if self.fp is None:     # Check file status
             return
         if self.mode == "r":    # check file mode
-            ZIP.ZipFile.close(self)
+            zipfile.ZipFile.close(self)
             return
         else:
             try:
@@ -186,7 +196,7 @@ class EPUB(ZIP.ZipFile):
                 TMP["opf"] = self.opf
                 TMP["ncx"] = self.ncx
                 self._safeclose()
-                ZIP.ZipFile.close(self)     # give back control to superclass close method
+                zipfile.ZipFile.close(self)     # give back control to superclass close method
             except RuntimeError:            # zipfile.__del__ destructor calls close(), ignore
                 return
 
@@ -289,13 +299,13 @@ class EPUB(ZIP.ZipFile):
         global FLO  # File-Like-Object: this is obviously wrong: any better idea?
                     # Also, the variable name is questionable
         FLO = StringIO()
-        new_zip = ZIP.ZipFile(FLO, 'w')
+        new_zip = zipfile.ZipFile(FLO, 'w')
         for item in self.infolist():
             if item.filename not in paths:
                 new_zip.writestr(item.filename, self.read(item.filename))
-        ZIP.ZipFile.close(self)     # Don't know why
+        zipfile.ZipFile.close(self)     # Don't know why
         new_zip.close()             # but it works, don't ever touch
-        ZIP.ZipFile.__init__(self, FLO, mode="a")
+        zipfile.ZipFile.__init__(self, FLO, mode="a")
 
     def additem(self, fileObject, href, mediatype):
         """
@@ -351,7 +361,7 @@ class EPUB(ZIP.ZipFile):
         """
         if self.mode == "r":
             # The inferface should be consistent
-            new_zip = ZIP.ZipFile(filename, 'w')
+            new_zip = zipfile.ZipFile(filename, 'w')
             for item in self.infolist():
                 new_zip.writestr(item.filename, self.read(item.filename))
             new_zip.close()
