@@ -10,6 +10,12 @@ import xml.etree.ElementTree as ET
 TMP = {"opf": None, "ncx": None}
 FLO = None
 
+NAMESPACE = {
+    "dc": "{http://purl.org/dc/elements/1.1/}",
+    "opf": "{http://www.idpf.org/2007/opf}",
+    "ncx": "{http://www.daisy.org/z3986/2005/ncx/}"
+}
+
 ET.register_namespace('dc', "http://purl.org/dc/elements/1.1/")
 ET.register_namespace('opf', "http://www.idpf.org/2007/opf")
 ET.register_namespace('ncx', "http://www.daisy.org/z3986/2005/ncx/")
@@ -87,7 +93,7 @@ class EPUB(ZIP.ZipFile):
         ns = re.compile(r'\{.*?\}')  # RE to strip {namespace} mess
 
         # Iterate over <metadata> section, fill EPUB.info["metadata"] dictionary
-        for i in self.opf.find("opf:metadata"):
+        for i in self.opf.find("{0}metadata".format(NAMESPACE["opf"])):
             tag = ns.sub('', i.tag)
             if tag not in self.info["metadata"]:
                 self.info["metadata"][tag] = i.text or i.attrib
@@ -105,15 +111,15 @@ class EPUB(ZIP.ZipFile):
         self.info["manifest"] = [{"id": x.get("id"),                # Build a list of manifest items
                                   "href": x.get("href"),
                                   "mimetype": x.get("media-type")}
-                                 for x in self.opf.find("opf:manifest")]
+                                 for x in self.opf.find("{0}manifest".format(NAMESPACE["opf"]))]
 
         self.info["spine"] = [{"idref": x.get("idref")}             # Build a list of spine items
-                              for x in self.opf.find("opf:spine")]
+                              for x in self.opf.find("{0}spine".format(NAMESPACE["opf"]))]
         try:
             self.info["guide"] = [{"href": x.get("href"),           # Build a list of guide items
                                    "type": x.get("type"),
                                    "title": x.get("title")}
-                                  for x in self.opf.find("opf:guide")]
+                                  for x in self.opf.find("{0}guide".format(NAMESPACE["opf"]))]
         except TypeError:                                           # The guide element is optional
             self.info["guide"] = None
 
@@ -121,8 +127,8 @@ class EPUB(ZIP.ZipFile):
         try:
             self.id = self.opf.find('.//*[@id="{0}"]'.format(self.opf.get("unique-identifier"))).text
         except AttributeError:
-            raise InvalidEpub                                       # Cannot process an EPUB without unique-identifier
-                                                                    # attribute of the package element
+            raise InvalidEpub  # Cannot process an EPUB without unique-identifier
+                               # attribute of the package element
         # Get and parse the TOC
         toc_id = self.opf[2].get("toc")
         expr = ".//*[@id='{0:s}']".format(toc_id)
@@ -132,7 +138,7 @@ class EPUB(ZIP.ZipFile):
         self.contents = [{"name": i[0][0].text or "None",           # Build a list of toc elements
                           "src": self.root_folder + "/" + i[1].get("src"),
                           "id":i.get("id")}
-                         for i in self.ncx.iter("ncx:navPoint")]    # The iter method
+                         for i in self.ncx.iter("{0}navPoint".format(NAMESPACE["ncx"]))]    # The iter method
                                                                                             # loops over nested
                                                                                             # navPoints
 
