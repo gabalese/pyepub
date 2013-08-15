@@ -2,7 +2,7 @@ from distutils.core import setup
 
 setup(
     name='pyepub',
-    version='0.1.2',
+    version='0.2.0',
     packages=['pyepub'],
     url='http://blog.alese.it/pyepub',
     license='MIT',
