@@ -6,10 +6,9 @@ from StringIO import StringIO
 import datetime
 
 try:
-    from lxml.etree import ElementTree as ET
+    import lxml.etree as ET
 except ImportError:
-        import xml.etree.ElementTree as ET
-
+    import xml.etree.ElementTree as ET
 
 TMP = {"opf": None, "ncx": None}
 FLO = None
