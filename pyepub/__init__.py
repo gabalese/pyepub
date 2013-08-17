@@ -116,15 +116,15 @@ class EPUB(zipfile.ZipFile):
         self.info["manifest"] = [{"id": x.get("id"),                # Build a list of manifest items
                                   "href": x.get("href"),
                                   "mimetype": x.get("media-type")}
-                                 for x in self.opf.find("{0}manifest".format(NAMESPACE["opf"]))]
+                                 for x in self.opf.find("{0}manifest".format(NAMESPACE["opf"])) if x.get("id")]
 
         self.info["spine"] = [{"idref": x.get("idref")}             # Build a list of spine items
-                              for x in self.opf.find("{0}spine".format(NAMESPACE["opf"]))]
+                              for x in self.opf.find("{0}spine".format(NAMESPACE["opf"])) if x.get("idref")]
         try:
             self.info["guide"] = [{"href": x.get("href"),           # Build a list of guide items
                                    "type": x.get("type"),
                                    "title": x.get("title")}
-                                  for x in self.opf.find("{0}guide".format(NAMESPACE["opf"]))]
+                                  for x in self.opf.find("{0}guide".format(NAMESPACE["opf"])) if x.get("href")]
         except TypeError:                                           # The guide element is optional
             self.info["guide"] = None
 
