@@ -6,22 +6,18 @@ from StringIO import StringIO
 import datetime
 
 try:
-    import lxml.etree as ET
-except ImportError:
+    import lxml.etree as ET                 # lxml is faster
+except ImportError:                         # ... but ET would suffice
     import xml.etree.ElementTree as ET
 
-TMP = {"opf": None, "ncx": None}
-FLO = None
+TMP = {"opf": None, "ncx": None}            # temporary global object to store opf and ncx trees
+FLO = None                                  # file-like object to store temporary zipfile
 
-NAMESPACE = {
+NAMESPACE = {                               # dictionary mapping NS prefix for EPUB
     "dc": "{http://purl.org/dc/elements/1.1/}",
     "opf": "{http://www.idpf.org/2007/opf}",
     "ncx": "{http://www.daisy.org/z3986/2005/ncx/}"
 }
-
-ET.register_namespace('dc', "http://purl.org/dc/elements/1.1/")
-ET.register_namespace('opf', "http://www.idpf.org/2007/opf")
-ET.register_namespace('ncx', "http://www.daisy.org/z3986/2005/ncx/")
 
 
 class InvalidEpub(Exception):
@@ -95,7 +91,7 @@ class EPUB(zipfile.ZipFile):
         self.root_folder = os.path.dirname(self.opf_path)   # Used to compose absolute paths for reading in zip archive
         self.opf = ET.fromstring(self.read(self.opf_path))  # OPF tree
 
-        ns = re.compile(r'\{.*?\}')  # RE to strip {namespace} mess
+        ns = re.compile(r"{.*?}")  # RE to strip {namespace} mess
 
         # Iterate over <metadata> section, fill EPUB.info["metadata"] dictionary
         for i in self.opf.find("{0}metadata".format(NAMESPACE["opf"])):
@@ -105,13 +101,11 @@ class EPUB(zipfile.ZipFile):
             else:
                 self.info["metadata"][tag] = [self.info["metadata"][tag], i.text or i.attrib]
 
-        # Get id of the cover in <meta name="cover" />
-        try:
+        try:   # Get id of the cover in <meta name="cover" />
             coverid = self.opf.find('.//{0}meta[@name="cover"]'.format(NAMESPACE["opf"])).get("content")
-        except AttributeError:
-            # It's a facultative field, after all
+        except AttributeError:  # It's a facultative field, after all
             coverid = None
-        self.cover = coverid  # This is the manifest ID of the cover
+        self.cover = coverid    # This is the manifest ID of the cover
 
         self.info["manifest"] = [{"id": x.get("id"),                # Build a list of manifest items
                                   "href": x.get("href"),
@@ -125,7 +119,7 @@ class EPUB(zipfile.ZipFile):
                                    "type": x.get("type"),
                                    "title": x.get("title")}
                                   for x in self.opf.find("{0}guide".format(NAMESPACE["opf"])) if x.get("href")]
-        except TypeError:                                           # The guide element is optional
+        except TypeError:  # The guide element is optional
             self.info["guide"] = None
 
         # Document identifier
@@ -135,6 +129,7 @@ class EPUB(zipfile.ZipFile):
         except AttributeError:
             raise InvalidEpub  # Cannot process an EPUB without unique-identifier
                                # attribute of the package element
+
         # Get and parse the TOC
         toc_id = self.opf[2].get("toc")
         expr = ".//{0}item[@id='{1:s}']".format(NAMESPACE["opf"], toc_id)
@@ -166,8 +161,8 @@ class EPUB(zipfile.ZipFile):
         self.writestr('mimetype', "application/epub+zip")
         self.writestr('META-INF/container.xml', self._containerxml())
         self.info["metadata"]["creator"] = "py-clave server"
-        self.info["metadata"]["title"] = ""
-        self.info["metadata"]["language"] = ""
+        self.info["metadata"]["title"] = "New EPUB file"  # defaults to init OPF, override later by setting opf tree
+        self.info["metadata"]["language"] = "en-US"
 
         # Problem is: you can't overwrite file contents with python ZipFile
         # so you must add contents BEFORE finalizing the file
@@ -217,8 +212,8 @@ class EPUB(zipfile.ZipFile):
     def _init_opf(self):
         """
         Constructor for empty OPF
-        :type return: xml.minidom.Document
-        :return: xml.minidom.Document
+        :type return: str
+        :return: str
         """
         today = datetime.date.today()
         opf_tmpl = """<?xml version="1.0" encoding="utf-8" standalone="yes"?>
@@ -247,8 +242,8 @@ class EPUB(zipfile.ZipFile):
     def _init_ncx(self):
         """
         Constructor for empty OPF
-        :type return: xml.minidom.Document
-        :return: xml.minidom.Document
+        :type return: str
+        :return: str
         """
         ncx_tmpl = """<?xml version="1.0" encoding="utf-8"?>
                         <!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN"
@@ -275,19 +270,21 @@ class EPUB(zipfile.ZipFile):
                     <container version="1.0"
                                xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
                         <rootfiles>
-                             <rootfile full-path="%s"
+                             <rootfile full-path="{0}"
                                        media-type="application/oebps-package+xml"/>
                         </rootfiles>
                     </container>"""
-        return template % self.opf_path
+        return template.format(self.opf_path)
 
     def _delete(self, *paths):
         """
-        Delete archive member
+        Delete archive member(s)
         Basically a hack: zince zipfile can't natively overwrite or delete resources,
         a new archive is created from scratch to a StringIO file object.
         The starting file is *never* overwritten.
         To write the new file to disk, use the writefiletodisk() instance method.
+
+        Thanks nosklo, see: http://stackoverflow.com/a/4653863
 
         :type paths: str
         :param paths: files to be deleted inside EPUB file
@@ -300,10 +297,10 @@ class EPUB(zipfile.ZipFile):
             if item.filename not in paths:
                 try:
                     new_zip.writestr(item.filename, self.read(item.filename))
-                except zipfile.BadZipfile:
-                    pass
-        zipfile.ZipFile.close(self)     # Don't know why
-        new_zip.close()                 # but it works, don't ever touch
+                except zipfile.BadZipfile:  # sometime zipfile.ZipFile complains, but once the file gets re-init'd
+                    pass                    # it doesn't matter anyore, and the file is perfectly fine
+        zipfile.ZipFile.close(self)
+        new_zip.close()
         zipfile.ZipFile.__init__(self, FLO, mode="a")
 
     def additem(self, fileObject, href, mediatype):
@@ -313,9 +310,9 @@ class EPUB(zipfile.ZipFile):
         :type fileObject: StringIO
         :param fileObject:
         :type href: str
-        :param href:
+        :param href: path to resource
         :type mediatype: str
-        :param mediatype:
+        :param mediatype: any valid media-type according to EPUB spec
         """
         assert self.mode != "r", "%s is not writable" % self
         element = ET.Element("item",
@@ -360,17 +357,16 @@ class EPUB(zipfile.ZipFile):
         """
         if self.mode == "r":
             # The inferface should be consistent
+            # and no overwritten file
             new_zip = zipfile.ZipFile(filename, 'w')
             for item in self.infolist():
                 new_zip.writestr(item.filename, self.read(item.filename))
             new_zip.close()
             return
-            # this is a bad habit
-        f = open(filename, "w")
-        try:
-            self.filename.seek(0)
-        except AttributeError:  # file must be closed first
-            self.close()
-            self.filename.seek(0)
-        f.write(self.filename.read())
-        f.close()
+        with open(filename, "w") as f:
+            try:
+                self.filename.seek(0)
+            except AttributeError:  # file must be closed first
+                self.close()
+                self.filename.seek(0)
+            f.write(self.filename.read())
