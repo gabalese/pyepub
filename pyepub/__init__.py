@@ -33,7 +33,7 @@ class EPUB(zipfile.ZipFile):
     EPUB file representation class.
 
     """
-    def __init__(self, filename, mode="r"):
+    def __init__(self, filename, mode="r", title=None, language=None):
         """
         Global Init Switch
 
@@ -48,7 +48,7 @@ class EPUB(zipfile.ZipFile):
                     "Can't overwrite existing file: %s" % filename
             self.filename = filename
             zipfile.ZipFile.__init__(self, self.filename, mode="w")
-            self.__init__write()
+            self.__init__write(title, language)
         elif mode == "a":
             assert not isinstance(filename, StringIO), \
                 "Can't append to StringIO object, use write instead: %s" % filename
@@ -148,7 +148,7 @@ class EPUB(zipfile.ZipFile):
                                                                                             # loops over nested
                                                                                             # navPoints
 
-    def __init__write(self):
+    def __init__write(self, title, language):
         """
         Init an empty EPUB
 
@@ -166,8 +166,8 @@ class EPUB(zipfile.ZipFile):
         self.writestr('mimetype', "application/epub+zip")
         self.writestr('META-INF/container.xml', self._containerxml())
         self.info["metadata"]["creator"] = "py-clave server"
-        self.info["metadata"]["title"] = ""
-        self.info["metadata"]["language"] = ""
+        self.info["metadata"]["title"] = title
+        self.info["metadata"]["language"] = language
 
         # Problem is: you can't overwrite file contents with python ZipFile
         # so you must add contents BEFORE finalizing the file
@@ -240,8 +240,8 @@ class EPUB(zipfile.ZipFile):
 
         doc = opf_tmpl.format(uid=self.uid,
                               date=today,
-                              title=self.info["metadata"]["title"],
-                              lang=self.info["metadata"]["language"])
+                              title=self.info["metadata"]["title"].encode('utf-8'),
+                              lang=self.info["metadata"]["language"].encode('utf-8'))
         return doc
 
     def _init_ncx(self):
