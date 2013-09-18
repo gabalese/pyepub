@@ -190,10 +190,6 @@ class EPUB(zipfile.ZipFile):
         self.info["metadata"]["creator"] = value
 
     @property
-    def language(self):
-        return self.info["metadata"]["language"]
-
-    @property
     def title(self):
         return self.info["metadata"]["title"]
 
@@ -204,6 +200,10 @@ class EPUB(zipfile.ZipFile):
         ncx_title = self.ncx.find("{http://www.daisy.org/z3986/2005/ncx/}docTitle")[0]
         ncx_title.text = value
         self.info["metadata"]["title"] = value
+
+    @property
+    def language(self):
+        return self.info["metadata"]["language"]
 
     @language.setter
     def language(self, value):
@@ -411,5 +411,5 @@ class EPUB(zipfile.ZipFile):
     def __del__(self):
         try:
             self.fp.close()
-        except ValueError:
+        except (ValueError, AttributeError):
             pass
