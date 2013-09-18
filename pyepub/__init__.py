@@ -48,7 +48,7 @@ class EPUB(zipfile.ZipFile):
                     "Can't overwrite existing file: %s" % filename
             self.filename = filename
             zipfile.ZipFile.__init__(self, self.filename, mode="w")
-            self.__init__write(title, language)
+            self.__init__write()
         elif mode == "a":
             assert not isinstance(filename, StringIO), \
                 "Can't append to StringIO object, use write instead: %s" % filename
@@ -148,7 +148,7 @@ class EPUB(zipfile.ZipFile):
                                                                                             # loops over nested
                                                                                             # navPoints
 
-    def __init__write(self, title, language):
+    def __init__write(self):
         """
         Init an empty EPUB
 
@@ -166,8 +166,8 @@ class EPUB(zipfile.ZipFile):
         self.writestr('mimetype', "application/epub+zip")
         self.writestr('META-INF/container.xml', self._containerxml())
         self.info["metadata"]["creator"] = "py-clave server"
-        self.info["metadata"]["title"] = title
-        self.info["metadata"]["language"] = language
+        self.info["metadata"]["title"] = ""
+        self.info["metadata"]["language"] = ""
 
         # Problem is: you can't overwrite file contents with python ZipFile
         # so you must add contents BEFORE finalizing the file
@@ -178,6 +178,38 @@ class EPUB(zipfile.ZipFile):
 
         self.writestr(self.opf_path, ET.tostring(self.opf, encoding="UTF-8"))  # temporary opf & ncx
         self.writestr(self.ncx_path, ET.tostring(self.ncx, encoding="UTF-8"))  # will be re-init on close()
+
+    @property
+    def author(self):
+        return self.info["metadata"]["creator"]
+
+    @author.setter
+    def author(self, value):
+        tmp = self.opf.find(".//{0}creator".format(NAMESPACE["dc"]))
+        tmp.text = value
+        self.info["metadata"]["creator"] = value
+
+    @property
+    def language(self):
+        return self.info["metadata"]["language"]
+
+    @property
+    def title(self):
+        return self.info["metadata"]["title"]
+
+    @title.setter
+    def title(self, value):
+        tmp = self.opf.find(".//{0}title".format(NAMESPACE["dc"]))
+        tmp.text = value
+        ncx_title = self.ncx.find("{http://www.daisy.org/z3986/2005/ncx/}docTitle")[0]
+        ncx_title.text = value
+        self.info["metadata"]["title"] = value
+
+    @language.setter
+    def language(self, value):
+        tmp = self.opf.find(".//{0}language".format(NAMESPACE["dc"]))
+        tmp.text = value
+        self.info["metadata"]["language"] = value
 
     def close(self):
         if self.fp is None:     # Check file status
@@ -225,8 +257,9 @@ class EPUB(zipfile.ZipFile):
                         <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0">
                         <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
                             <dc:identifier id="BookId" opf:scheme="UUID">{uid}</dc:identifier>
-                            <dc:title>{title}</dc:title>
-                            <dc:language>{lang}</dc:language>
+                            <dc:title></dc:title>
+                            <dc:creator></dc:creator>
+                            <dc:language></dc:language>
                             <dc:date opf:event="modification">{date}</dc:date>
                         </metadata>
                         <manifest>
@@ -238,10 +271,7 @@ class EPUB(zipfile.ZipFile):
                         </guide>
                         </package>"""
 
-        doc = opf_tmpl.format(uid=self.uid,
-                              date=today,
-                              title=self.info["metadata"]["title"].encode('utf-8'),
-                              lang=self.info["metadata"]["language"].encode('utf-8'))
+        doc = opf_tmpl.format(uid=self.uid, date=today)
         return doc
 
     def _init_ncx(self):
@@ -377,3 +407,9 @@ class EPUB(zipfile.ZipFile):
             self.filename.seek(0)
         f.write(self.filename.read())
         f.close()
+
+    def __del__(self):
+        try:
+            self.fp.close()
+        except ValueError:
+            pass
