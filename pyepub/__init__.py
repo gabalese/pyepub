@@ -3,6 +3,7 @@ import os
 import re
 import uuid
 from StringIO import StringIO
+from io import BytesIO
 import datetime
 
 try:
@@ -37,7 +38,7 @@ class EPUB(zipfile.ZipFile):
         """
         Global Init Switch
 
-        :type filename: str or StringIO()
+        :type filename: str or StringIO() or file like object for read or add
         :param filename: File to be processed
         :type mode: str
         :param mode: "w" or "r", mode to init the zipfile
@@ -52,7 +53,11 @@ class EPUB(zipfile.ZipFile):
         elif mode == "a":
             assert not isinstance(filename, StringIO), \
                 "Can't append to StringIO object, use write instead: %s" % filename
-            tmp = open(filename, "r")  # ensure that the input file is never-ever overwritten
+            if isinstance(filename, str):
+                tmp = open(filename, "r")  # ensure that the input file is never-ever overwritten
+            else:
+                # filename is already a file like object
+                tmp=filename
             tmp.seek(0)
             initfile = StringIO()
             initfile.write(tmp.read())
@@ -186,6 +191,7 @@ class EPUB(zipfile.ZipFile):
             zipfile.ZipFile.close(self)
             return
         else:
+            print "epub closing"
             try:
                 global TMP                  # in-memory copy of existing opf-ncx. When the epub gets re-init,
                                             # it loses track of modifications
@@ -344,12 +350,10 @@ class EPUB(zipfile.ZipFile):
         fileid = self.additem(fileObject, href, mediatype)
         itemref = ET.Element("itemref", attrib={"idref": fileid, "linear": linear})
         reference = ET.Element("reference", attrib={"title": href, "href": href, "type": reftype})
-        if position is None:
+        if position is None or position>len(self.opf[2]):
             self.opf[2].append(itemref)
             self.opf[3].append(reference)
         else:
-            assert len(self.opf[2]) >= position+1, \
-                "Wrong position parameter: %d is longer than %d" % (position, len(self.opf[2]))
             self.opf[2].insert(position, itemref)
             if len(self.opf[3]) >= position+1:
                 self.opf[3].insert(position, reference)
