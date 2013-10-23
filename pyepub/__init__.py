@@ -33,7 +33,8 @@ class EPUB(zipfile.ZipFile):
     EPUB file representation class.
 
     """
-    def __init__(self, filename, mode="r", title=None, language=None):
+
+    def __init__(self, filename, mode="r"):
         """
         Global Init Switch
 
@@ -56,7 +57,7 @@ class EPUB(zipfile.ZipFile):
                 tmp = open(filename, "r")  # ensure that the input file is never-ever overwritten
             else:
                 # filename is already a file like object
-                tmp=filename
+                tmp = filename
             tmp.seek(0)
             initfile = StringIO()
             initfile.write(tmp.read())
@@ -117,7 +118,7 @@ class EPUB(zipfile.ZipFile):
             coverid = None
         self.cover = coverid  # This is the manifest ID of the cover
 
-        self.info["manifest"] = [{"id": x.get("id"),                # Build a list of manifest items
+        self.info["manifest"] = [{"id": x.get("id"),  # Build a list of manifest items
                                   "href": x.get("href"),
                                   "mimetype": x.get("media-type")}
                                  for x in self.opf.find("{0}manifest".format(NAMESPACE["opf"])) if x.get("id")]
@@ -125,7 +126,7 @@ class EPUB(zipfile.ZipFile):
         self.info["spine"] = [{"idref": x.get("idref")}             # Build a list of spine items
                               for x in self.opf.find("{0}spine".format(NAMESPACE["opf"])) if x.get("idref")]
         try:
-            self.info["guide"] = [{"href": x.get("href"),           # Build a list of guide items
+            self.info["guide"] = [{"href": x.get("href"),  # Build a list of guide items
                                    "type": x.get("type"),
                                    "title": x.get("title")}
                                   for x in self.opf.find("{0}guide".format(NAMESPACE["opf"])) if x.get("href")]
@@ -138,19 +139,19 @@ class EPUB(zipfile.ZipFile):
                                                                          self.opf.get("unique-identifier"))).text
         except AttributeError:
             raise InvalidEpub  # Cannot process an EPUB without unique-identifier
-                               # attribute of the package element
+            # attribute of the package element
         # Get and parse the TOC
         toc_id = self.opf[2].get("toc")
         expr = ".//{0}item[@id='{1:s}']".format(NAMESPACE["opf"], toc_id)
         toc_name = self.opf.find(expr).get("href")
         self.ncx_path = os.path.join(self.root_folder, toc_name)
         self.ncx = ET.fromstring(self.read(self.ncx_path))
-        self.contents = [{"name": i[0][0].text or "None",           # Build a list of toc elements
+        self.contents = [{"name": i[0][0].text or "None",  # Build a list of toc elements
                           "src": os.path.join(self.root_folder, i[1].get("src")),
-                          "id":i.get("id")}
+                          "id": i.get("id")}
                          for i in self.ncx.iter("{0}navPoint".format(NAMESPACE["ncx"]))]    # The iter method
-                                                                                            # loops over nested
-                                                                                            # navPoints
+        # loops over nested
+        # navPoints
 
     def __init__write(self):
         """
@@ -339,7 +340,7 @@ class EPUB(zipfile.ZipFile):
         zipfile.ZipFile.close(self)     # Don't know why
         new_zip.close()                 # but it works, don't ever touch
         zipfile.ZipFile.__init__(self, FLO, mode="a")
-    
+
     def addmetadata(self, term, value, namespace='dc'):
         """
         Add an metadata entry 
@@ -352,23 +353,22 @@ class EPUB(zipfile.ZipFile):
         :param namespace. either a '{URI}' or a registered prefix ('dc', 'opf', 'ncx') are currently built-in
         """
         assert self.mode != "r", "%s is not writable" % self
-        namespace = NAMESPACE.get(namespace,namespace)
-        element = ET.Element(namespace+term, attrib={})
+        namespace = NAMESPACE.get(namespace, namespace)
+        element = ET.Element(namespace + term, attrib={})
         element.text = value
         self.opf[0].append(element)
         # note that info is ignoring namespace entirely
-        if self.info["metadata"].has_key(term):
-            self.info["metadata"][term] = [self.info["metadata"][term] , value]
+        if term in self.info["metadata"]:
+            self.info["metadata"][term] = [self.info["metadata"][term], value]
         else:
             self.info["metadata"][term] = value
-        
-        
-    def additem(self, fileObject, href, mediatype):
+
+    def additem(self, fileobject, href, mediatype):
         """
         Add a file to manifest only
 
-        :type fileObject: StringIO
-        :param fileObject:
+        :type fileobject: StringIO
+        :param fileobject:
         :type href: str
         :param href:
         :type mediatype: str
@@ -376,20 +376,20 @@ class EPUB(zipfile.ZipFile):
         """
         assert self.mode != "r", "%s is not writable" % self
         element = ET.Element("item",
-                             attrib={"id": "id_"+str(uuid.uuid4())[:5], "href": href, "media-type": mediatype})
+                             attrib={"id": "id_" + str(uuid.uuid4())[:5], "href": href, "media-type": mediatype})
 
         try:
-            self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileObject.getvalue())
+            self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileobject.getvalue())
         except AttributeError:
-            self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileObject)
+            self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileobject)
         self.opf[1].append(element)
         return element.attrib["id"]
 
-    def addpart(self, fileObject, href, mediatype, position=None, reftype="text", linear="yes"):
+    def addpart(self, fileobject, href, mediatype, position=None, reftype="text", linear="yes"):
         """
         Add a file as part of the epub file, i.e. to manifest and spine (and guide?)
 
-        :param fileObject: file to be inserted
+        :param fileobject: file to be inserted
         :param href: path inside the epub archive
         :param mediatype: mimetype of the fileObject
         :type position: int
@@ -398,16 +398,16 @@ class EPUB(zipfile.ZipFile):
         :param reftype: type to assign in guide/reference
         """
         assert self.mode != "r", "%s is not writable" % self
-        fileid = self.additem(fileObject, href, mediatype)
+        fileid = self.additem(fileobject, href, mediatype)
         itemref = ET.Element("itemref", attrib={"idref": fileid, "linear": linear})
         reference = ET.Element("reference", attrib={"title": href, "href": href, "type": reftype})
-        if position is None or position>len(self.opf[2]):
+        if position is None or position > len(self.opf[2]):
             self.opf[2].append(itemref)
             if self.info["guide"]:
                 self.opf[3].append(reference)
         else:
             self.opf[2].insert(position, itemref)
-            if self.info["guide"] and len(self.opf[3]) >= position+1:
+            if self.info["guide"] and len(self.opf[3]) >= position + 1:
                 self.opf[3].insert(position, reference)
 
     def writetodisk(self, filename):
@@ -423,8 +423,7 @@ class EPUB(zipfile.ZipFile):
             for item in self.infolist():
                 new_zip.writestr(item.filename, self.read(item.filename))
             new_zip.close()
-            return
-            # this is a bad habit
+            return  # this is a bad habit
         f = open(filename, "w")
         try:
             self.filename.seek(0)
