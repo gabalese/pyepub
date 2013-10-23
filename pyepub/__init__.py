@@ -10,6 +10,8 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 
+from metadata import Info
+
 TMP = {"opf": None, "ncx": None}
 FLO = None
 
@@ -91,24 +93,18 @@ class EPUB(zipfile.ZipFile):
             print "The %s file is not a valid OCF." % str(filename)
             raise InvalidEpub
 
-        # NEW: json-able info tree
-        self.info = {"metadata": {},
+        self.root_folder = os.path.dirname(self.opf_path)   # Used to compose absolute paths for reading in zip archive
+        self.opf = ET.fromstring(self.read(self.opf_path))  # OPF tree
+        m = Info(self.opf)
+
+        m.pop("spine")          # Drop the extra fields while I figure out how to implement the rest
+        m.pop("manifest")
+        m.pop("guide")
+
+        self.info = {"metadata": m,
                      "manifest": [],
                      "spine": [],
                      "guide": []}
-
-        self.root_folder = os.path.dirname(self.opf_path)   # Used to compose absolute paths for reading in zip archive
-        self.opf = ET.fromstring(self.read(self.opf_path))  # OPF tree
-
-        ns = re.compile(r"\{.*?\}")  # RE to strip {namespace} mess
-
-        # Iterate over <metadata> section, fill EPUB.info["metadata"] dictionary
-        for i in self.opf.find("{0}metadata".format(NAMESPACE["opf"])):
-            tag = ns.sub('', i.tag)
-            if tag not in self.info["metadata"]:
-                self.info["metadata"][tag] = i.text or i.attrib
-            else:
-                self.info["metadata"][tag] = [self.info["metadata"][tag], i.text or i.attrib]
 
         # Get id of the cover in <meta name="cover" />
         try:

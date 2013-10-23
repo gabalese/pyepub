@@ -2,7 +2,7 @@ import unittest
 import urllib2
 from tempfile import NamedTemporaryFile
 from StringIO import StringIO
-from . import EPUB
+from __init__ import EPUB
 
 try:
     import lxml.etree as ET
