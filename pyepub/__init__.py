@@ -99,7 +99,7 @@ class EPUB(zipfile.ZipFile):
         self.root_folder = os.path.dirname(self.opf_path)   # Used to compose absolute paths for reading in zip archive
         self.opf = ET.fromstring(self.read(self.opf_path))  # OPF tree
 
-        ns = re.compile(r'\{.*?\}')  # RE to strip {namespace} mess
+        ns = re.compile(r"\{.*?\}")  # RE to strip {namespace} mess
 
         # Iterate over <metadata> section, fill EPUB.info["metadata"] dictionary
         for i in self.opf.find("{0}metadata".format(NAMESPACE["opf"])):
