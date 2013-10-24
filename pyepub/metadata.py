@@ -11,33 +11,46 @@ NAMESPACE = {
     "ncx": "{http://www.daisy.org/z3986/2005/ncx/}"
 }
 
+inv_NAMESPACE = {v: k for k, v in NAMESPACE.iteritems()}
 
-class Info(dict):
+ns = re.compile(r"\{.*?\}")
+
+
+class Metadata(dict):
     def __init__(self, opf):
         """
         Init
         :param opf: xml.etree.ElementTree.ElementTree
         """
-        ns = re.compile(r"\{.*?\}")
-        temporary_dict = {"metadata": {},
-                          "manifest": [],
-                          "spine": [],
-                          "guide": []}
+        self.opf = opf
+        temporary_dict = {}
 
-        for i in opf.find("{0}metadata".format(NAMESPACE["opf"])):
-            tag = ns.sub('', i.tag)  # TODO: find a way to preserve namespaces!
-            if tag not in temporary_dict["metadata"]:
-                temporary_dict["metadata"][tag] = i.text or i.attrib
+        for i in self.opf.find("{0}metadata".format(NAMESPACE["opf"])):
+            tag = ns.sub(inv_NAMESPACE[ns.findall(i.tag)[0]] + ":" or '', i.tag)
+            if tag not in temporary_dict:
+                temporary_dict[tag] = i.text or i.attrib
             else:
-                temporary_dict["metadata"][tag] = [temporary_dict["metadata"][tag], i.text or i.attrib]
+                temporary_dict[tag] = [temporary_dict[tag], i.text or i.attrib]
 
         dict.__init__(self, temporary_dict)
 
     def __setitem__(self, key, value):
-        # Do something fancy in the OPF
-        # TODO: Is the opf copied or just pointed to when creating a Info class?
         dict.__setitem__(self, key, value)
+        key_tuple = key.split(":")
+        if len(key_tuple) < 2:
+            key_tuple.insert(0, "")
+        tmp = self.opf.find(".//{0}{1}".format(NAMESPACE[key_tuple[0]], key_tuple[1]))
+        tmp.text = value
+        # The interface should be consistent with a xml.etree.Element
 
-    def __getitem__(self, key):
-        # Leave this alone
-        return dict.__getitem__(self, key)
+
+class Manifest(dict):
+    pass
+
+
+class Spine(dict):
+    pass
+
+
+class Guide(dict):
+    pass

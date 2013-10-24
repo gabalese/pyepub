@@ -9,7 +9,7 @@ try:
 except ImportError:
     import xml.etree.ElementTree as ET
 
-from metadata import Info
+from metadata import Metadata
 
 TMP = {"opf": None, "ncx": None}
 FLO = None
@@ -94,13 +94,8 @@ class EPUB(zipfile.ZipFile):
 
         self.root_folder = os.path.dirname(self.opf_path)   # Used to compose absolute paths for reading in zip archive
         self.opf = ET.fromstring(self.read(self.opf_path))  # OPF tree
-        m = Info(self.opf)
 
-        m.pop("spine")          # Drop the extra fields while I figure out how to implement the rest
-        m.pop("manifest")
-        m.pop("guide")
-
-        self.info = {"metadata": m,
+        self._info = {"metadata": Metadata(self.opf),
                      "manifest": [],
                      "spine": [],
                      "guide": []}
@@ -113,29 +108,29 @@ class EPUB(zipfile.ZipFile):
             coverid = None
         self.cover = coverid  # This is the manifest ID of the cover
 
-        self.info["manifest"] = [{"id": x.get("id"),  # Build a list of manifest items
+        self._info["manifest"] = [{"id": x.get("id"),  # Build a list of manifest items
                                   "href": x.get("href"),
                                   "mimetype": x.get("media-type")}
                                  for x in self.opf.find("{0}manifest".format(NAMESPACE["opf"])) if x.get("id")]
 
-        self.info["spine"] = [{"idref": x.get("idref")}             # Build a list of spine items
+        self._info["spine"] = [{"idref": x.get("idref")}             # Build a list of spine items
                               for x in self.opf.find("{0}spine".format(NAMESPACE["opf"])) if x.get("idref")]
 
         # this looks expensive...
         # ... but less expensive than doing a lookup with ElementTree.find()
-        for i in self.info["spine"]:
+        for i in self._info["spine"]:
             ref = i.get("idref")
-            for m in self.info["manifest"]:
+            for m in self._info["manifest"]:
                 if m.get("id") == ref:
                     i["href"] = m.get("href")
 
         try:
-            self.info["guide"] = [{"href": x.get("href"),  # Build a list of guide items
+            self._info["guide"] = [{"href": x.get("href"),  # Build a list of guide items
                                    "type": x.get("type"),
                                    "title": x.get("title")}
                                   for x in self.opf.find("{0}guide".format(NAMESPACE["opf"])) if x.get("href")]
         except TypeError:                                           # The guide element is optional
-            self.info["guide"] = None
+            self._info["guide"] = None
 
         # Document identifier
         try:
@@ -167,16 +162,16 @@ class EPUB(zipfile.ZipFile):
         self.root_folder = "OEBPS"
         self.uid = '%s' % uuid.uuid4()
 
-        self.info = {"metadata": {},
+        self._info = {"metadata": {},
                      "manifest": [],
                      "spine": [],
                      "guide": []}
 
         self.writestr('mimetype', "application/epub+zip")
         self.writestr('META-INF/container.xml', self._containerxml())
-        self.info["metadata"]["creator"] = "py-clave server"
-        self.info["metadata"]["title"] = ""
-        self.info["metadata"]["language"] = ""
+        self._info["metadata"]["creator"] = "py-clave server"
+        self._info["metadata"]["title"] = ""
+        self._info["metadata"]["language"] = ""
 
         # Problem is: you can't overwrite file contents with python ZipFile
         # so you must add contents BEFORE finalizing the file
@@ -190,17 +185,21 @@ class EPUB(zipfile.ZipFile):
 
     @property
     def author(self):
-        return self.info["metadata"]["creator"]
+        return self._info["metadata"]["creator"]
 
     @author.setter
     def author(self, value):
         tmp = self.opf.find(".//{0}creator".format(NAMESPACE["dc"]))
         tmp.text = value
-        self.info["metadata"]["creator"] = value
+        self._info["metadata"]["creator"] = value
+
+    @property
+    def info(self):
+        return self._info
 
     @property
     def title(self):
-        return self.info["metadata"]["title"]
+        return self._info["metadata"]["title"]
 
     @title.setter
     def title(self, value):
@@ -208,17 +207,17 @@ class EPUB(zipfile.ZipFile):
         tmp.text = value
         ncx_title = self.ncx.find("{http://www.daisy.org/z3986/2005/ncx/}docTitle")[0]
         ncx_title.text = value
-        self.info["metadata"]["title"] = value
+        self._info["metadata"]["title"] = value
 
     @property
     def language(self):
-        return self.info["metadata"]["language"]
+        return self._info["metadata"]["language"]
 
     @language.setter
     def language(self, value):
         tmp = self.opf.find(".//{0}language".format(NAMESPACE["dc"]))
         tmp.text = value
-        self.info["metadata"]["language"] = value
+        self._info["metadata"]["language"] = value
 
     def close(self):
         if self.fp is None:     # Check file status
@@ -363,10 +362,10 @@ class EPUB(zipfile.ZipFile):
         element.text = value
         self.opf[0].append(element)
         # note that info is ignoring namespace entirely
-        if term in self.info["metadata"]:
-            self.info["metadata"][term] = [self.info["metadata"][term], value]
+        if term in self._info["metadata"]:
+            self._info["metadata"][term] = [self._info["metadata"][term], value]
         else:
-            self.info["metadata"][term] = value
+            self._info["metadata"][term] = value
 
     def additem(self, fileobject, href, mediatype):
         """
@@ -408,11 +407,11 @@ class EPUB(zipfile.ZipFile):
         reference = ET.Element("reference", attrib={"title": href, "href": href, "type": reftype})
         if position is None or position > len(self.opf[2]):
             self.opf[2].append(itemref)
-            if self.info["guide"]:
+            if self._info["guide"]:
                 self.opf[3].append(reference)
         else:
             self.opf[2].insert(position, itemref)
-            if self.info["guide"] and len(self.opf[3]) >= position + 1:
+            if self._info["guide"] and len(self.opf[3]) >= position + 1:
                 self.opf[3].insert(position, reference)
 
     def writetodisk(self, filename):
