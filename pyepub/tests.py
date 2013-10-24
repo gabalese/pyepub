@@ -54,3 +54,5 @@ class EpubTests(unittest.TestCase):
         self.assertIn('<dc:test>GOOD<', ET.tostring(epub.opf, encoding="UTF-8"))
         self.assertTrue(epub.opf.find('.//{http://purl.org/dc/elements/1.1/}test') is not None)
         self.assertEqual(epub.info['metadata']['test'], 'GOOD')
+
+    # TODO: moar test, plz

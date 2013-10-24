@@ -19,23 +19,25 @@ class Info(dict):
         :param opf: xml.etree.ElementTree.ElementTree
         """
         ns = re.compile(r"\{.*?\}")
-        tempo = {"metadata": {},
-                 "manifest": [],
-                 "spine": [],
-                 "guide": []}
+        temporary_dict = {"metadata": {},
+                          "manifest": [],
+                          "spine": [],
+                          "guide": []}
 
         for i in opf.find("{0}metadata".format(NAMESPACE["opf"])):
-            tag = ns.sub('', i.tag)
-
-            if tag not in tempo["metadata"]:
-                tempo["metadata"][tag] = i.text or i.attrib
+            tag = ns.sub('', i.tag)  # TODO: find a way to preserve namespaces!
+            if tag not in temporary_dict["metadata"]:
+                temporary_dict["metadata"][tag] = i.text or i.attrib
             else:
-                tempo["metadata"][tag] = [tempo["metadata"][tag], i.text or i.attrib]
+                temporary_dict["metadata"][tag] = [temporary_dict["metadata"][tag], i.text or i.attrib]
 
-        dict.__init__(self, tempo)
+        dict.__init__(self, temporary_dict)
 
     def __setitem__(self, key, value):
+        # Do something fancy in the OPF
+        # TODO: Is the opf copied or just pointed to when creating a Info class?
         dict.__setitem__(self, key, value)
 
     def __getitem__(self, key):
+        # Leave this alone
         return dict.__getitem__(self, key)

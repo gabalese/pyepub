@@ -1,6 +1,5 @@
 import zipfile
 import os
-import re
 import uuid
 from StringIO import StringIO
 import datetime
@@ -121,6 +120,15 @@ class EPUB(zipfile.ZipFile):
 
         self.info["spine"] = [{"idref": x.get("idref")}             # Build a list of spine items
                               for x in self.opf.find("{0}spine".format(NAMESPACE["opf"])) if x.get("idref")]
+
+        # this looks expensive...
+        # ... but less expensive than doing a lookup with ElementTree.find()
+        for i in self.info["spine"]:
+            ref = i.get("idref")
+            for m in self.info["manifest"]:
+                if m.get("id") == ref:
+                    i["href"] = m.get("href")
+
         try:
             self.info["guide"] = [{"href": x.get("href"),  # Build a list of guide items
                                    "type": x.get("type"),
@@ -348,6 +356,7 @@ class EPUB(zipfile.ZipFile):
         :type namespace: str
         :param namespace. either a '{URI}' or a registered prefix ('dc', 'opf', 'ncx') are currently built-in
         """
+        raise DeprecationWarning("addmetadata is deprecated. Add items to info dict.")
         assert self.mode != "r", "%s is not writable" % self
         namespace = NAMESPACE.get(namespace, namespace)
         element = ET.Element(namespace + term, attrib={})
