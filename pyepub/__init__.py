@@ -96,9 +96,9 @@ class EPUB(zipfile.ZipFile):
         self.opf = ET.fromstring(self.read(self.opf_path))  # OPF tree
 
         self._info = {"metadata": Metadata(self.opf),
-                     "manifest": [],
-                     "spine": [],
-                     "guide": []}
+                      "manifest": [],
+                      "spine": [],
+                      "guide": []}
 
         # Get id of the cover in <meta name="cover" />
         try:
@@ -113,7 +113,7 @@ class EPUB(zipfile.ZipFile):
                                   "mimetype": x.get("media-type")}
                                  for x in self.opf.find("{0}manifest".format(NAMESPACE["opf"])) if x.get("id")]
 
-        self._info["spine"] = [{"idref": x.get("idref")}             # Build a list of spine items
+        self._info["spine"] = [{"idref": x.get("idref")}  # Build a list of spine items
                               for x in self.opf.find("{0}spine".format(NAMESPACE["opf"])) if x.get("idref")]
 
         # this looks expensive...
@@ -129,7 +129,7 @@ class EPUB(zipfile.ZipFile):
                                    "type": x.get("type"),
                                    "title": x.get("title")}
                                   for x in self.opf.find("{0}guide".format(NAMESPACE["opf"])) if x.get("href")]
-        except TypeError:                                           # The guide element is optional
+        except TypeError:  # The guide element is optional
             self._info["guide"] = None
 
         # Document identifier
@@ -137,9 +137,9 @@ class EPUB(zipfile.ZipFile):
             self.id = self.opf.find('.//{0}identifier[@id="{1}"]'.format(NAMESPACE["dc"],
                                                                          self.opf.get("unique-identifier"))).text
         except AttributeError:
-            raise InvalidEpub  # Cannot process an EPUB without unique-identifier
-            # attribute of the package element
-        # Get and parse the TOC
+            raise InvalidEpub   # Cannot process an EPUB without unique-identifier
+                                # attribute of the package element
+                                # Get and parse the TOC
         toc_id = self.opf[2].get("toc")
         expr = ".//{0}item[@id='{1:s}']".format(NAMESPACE["opf"], toc_id)
         toc_name = self.opf.find(expr).get("href")
