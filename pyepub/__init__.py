@@ -413,4 +413,3 @@ class EPUB(zipfile.ZipFile):
         new_zip = zipfile.ZipFile(filename, 'w')
         self._write_epub_zip(new_zip)
         new_zip.close()
-        return
