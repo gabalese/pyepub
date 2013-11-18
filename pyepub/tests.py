@@ -97,16 +97,16 @@ class EpubTests(unittest.TestCase):
         self.assertTrue(zipfile.is_zipfile(new_epub))
 
     def test_new_epub(self):
-        f = '%012x.epub' % random.randrange(16**12)  #random name
-        epub=EPUB(f,mode='w')
+        f = '%012x.epub' % random.randrange(16**12)  # random name
+        epub = EPUB(f, mode='w')
         epub.addmetadata('test', 'GOOD')
         uxml = u'<?xml version="1.0" encoding="utf-8" standalone="yes"?><test>VojtěchVojtíšek</test>'
         part = StringIO(unicode(uxml))
         epub.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
         epub.close()
-        epub=EPUB(f,mode='r')
-        self.assertEqual(len(epub.opf),4)
-        self.assertEqual(len(epub.opf[0]),5) #metadata items
-        self.assertEqual(len(epub.opf[1]),2) #manifest items
-        self.assertEqual(len(epub.opf[2]),1) #spine items
-        self.assertEqual(len(epub.opf[3]),0) #guide items
+        epub = EPUB(f, mode='r')
+        self.assertEqual(len(epub.opf), 4)  # opf lenght
+        self.assertEqual(len(epub.opf[0]), 6)  # metadata
+        self.assertEqual(len(epub.opf[1]), 2)  # manifest
+        self.assertEqual(len(epub.opf[2]), 1)  # spine
+        self.assertEqual(len(epub.opf[3]), 0)  # guide
