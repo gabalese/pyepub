@@ -29,11 +29,7 @@ class EPUB(zipfile.ZipFile):
     """
     EPUB file representation class.
     """
-<<<<<<< HEAD
-
-=======
     
->>>>>>> Gluejar-master
     def __init__(self, filename, mode="r"):
         """
         Global Init Switch
@@ -53,7 +49,7 @@ class EPUB(zipfile.ZipFile):
             else:
                 # filename is already a file like object
                 self.writename = filename
-            dummy= StringIO()
+            dummy = StringIO()
             zipfile.ZipFile.__init__(self, dummy, mode="w")  # fake
             self.__init__write()
         elif mode == "a":
@@ -62,22 +58,12 @@ class EPUB(zipfile.ZipFile):
                 self.filename = open(filename, "w")  # on close, we'll overwrite on this file
             else:
                 # filename is already a file like object
-<<<<<<< HEAD
-                tmp = filename
-            tmp.seek(0)
-            initfile = StringIO()
-            initfile.write(tmp.read())
-            tmp.close()
-            zipfile.ZipFile.__init__(self, initfile, mode="a")
-            self.__init__read(initfile)
-=======
                 self.filename = filename
             self.filename.seek(0)
             temp = StringIO()
             temp.write(self.filename.read())
             zipfile.ZipFile.__init__(self, self.filename, mode="r") # r mode doesn't set the filename
             self.__init__read(temp)
->>>>>>> Gluejar-master
         else:  # retrocompatibility?
             zipfile.ZipFile.__init__(self, filename, mode="r")
             self.__init__read(filename)
@@ -114,7 +100,7 @@ class EPUB(zipfile.ZipFile):
         self.root_folder = os.path.dirname(self.opf_path)   # Used to compose absolute paths for reading in zip archive
         self.opf = ET.fromstring(self.read(self.opf_path))  # OPF tree
 
-        ns = re.compile(r"\{.*?\}")  # RE to strip {namespace} mess
+        ns = re.compile(r'\{.*?\}')  # RE to strip {namespace} mess
 
         # Iterate over <metadata> section, fill EPUB.info["metadata"] dictionary
         for i in self.opf.find("{0}metadata".format(NAMESPACE["opf"])):
@@ -132,7 +118,7 @@ class EPUB(zipfile.ZipFile):
             coverid = None
         self.cover = coverid  # This is the manifest ID of the cover
 
-        self.info["manifest"] = [{"id": x.get("id"),  # Build a list of manifest items
+        self.info["manifest"] = [{"id": x.get("id"),                # Build a list of manifest items
                                   "href": x.get("href"),
                                   "mimetype": x.get("media-type")}
                                  for x in self.opf.find("{0}manifest".format(NAMESPACE["opf"])) if x.get("id")]
@@ -140,7 +126,7 @@ class EPUB(zipfile.ZipFile):
         self.info["spine"] = [{"idref": x.get("idref")}             # Build a list of spine items
                               for x in self.opf.find("{0}spine".format(NAMESPACE["opf"])) if x.get("idref")]
         try:
-            self.info["guide"] = [{"href": x.get("href"),  # Build a list of guide items
+            self.info["guide"] = [{"href": x.get("href"),           # Build a list of guide items
                                    "type": x.get("type"),
                                    "title": x.get("title")}
                                   for x in self.opf.find("{0}guide".format(NAMESPACE["opf"])) if x.get("href")]
@@ -152,30 +138,19 @@ class EPUB(zipfile.ZipFile):
             self.id = self.opf.find('.//{0}identifier[@id="{1}"]'.format(NAMESPACE["dc"],
                                                                          self.opf.get("unique-identifier"))).text
         except AttributeError:
-<<<<<<< HEAD
-            raise InvalidEpub  # Cannot process an EPUB without unique-identifier
-            # attribute of the package element
-=======
             raise InvalidEpub("Cannot process an EPUB without unique-identifier attribute of the package element")
->>>>>>> Gluejar-master
         # Get and parse the TOC
         toc_id = self.opf[2].get("toc")
         expr = ".//{0}item[@id='{1:s}']".format(NAMESPACE["opf"], toc_id)
         toc_name = self.opf.find(expr).get("href")
         self.ncx_path = os.path.join(self.root_folder, toc_name)
         self.ncx = ET.fromstring(self.read(self.ncx_path))
-        self.contents = [{"name": i[0][0].text or "None",  # Build a list of toc elements
+        self.contents = [{"name": i[0][0].text or "None",           # Build a list of toc elements
                           "src": os.path.join(self.root_folder, i[1].get("src")),
-                          "id": i.get("id")}
+                          "id":i.get("id")}
                          for i in self.ncx.iter("{0}navPoint".format(NAMESPACE["ncx"]))]    # The iter method
-<<<<<<< HEAD
-        # loops over nested
-        # navPoints
-
-=======
                                                                                             # loops over nested
                                                                                                   
->>>>>>> Gluejar-master
     def __init__write(self):
         """
         Init an empty EPUB
@@ -314,22 +289,6 @@ class EPUB(zipfile.ZipFile):
         :type paths: [str]
         :param paths: files to be deleted inside EPUB file
         """
-<<<<<<< HEAD
-        global FLO  # File-Like-Object: this is obviously wrong: any better idea?
-                    # Also, the variable name is questionable
-        FLO = StringIO()
-        new_zip = zipfile.ZipFile(FLO, 'w')
-        for item in self.infolist():
-            if item.filename not in paths:
-                try:
-                    new_zip.writestr(item.filename, self.read(item.filename))
-                except zipfile.BadZipfile:
-                    pass
-        zipfile.ZipFile.close(self)     # Don't know why
-        new_zip.close()                 # but it works, don't ever touch
-        zipfile.ZipFile.__init__(self, FLO, mode="a")
-
-=======
         for path in paths:
             try:
                 del self._write_files[path]
@@ -337,7 +296,6 @@ class EPUB(zipfile.ZipFile):
                 pass
             self._delete_files.append(path)
     
->>>>>>> Gluejar-master
     def addmetadata(self, term, value, namespace='dc'):
         """
         Add an metadata entry 
@@ -349,37 +307,26 @@ class EPUB(zipfile.ZipFile):
         :type namespace: str
         :param namespace. either a '{URI}' or a registered prefix ('dc', 'opf', 'ncx') are currently built-in
         """
-<<<<<<< HEAD
-        assert self.mode != "r", "%s is not writable" % self
-        namespace = NAMESPACE.get(namespace, namespace)
-        element = ET.Element(namespace + term, attrib={})
-=======
         assert self.epub_mode != "r", "%s is not writable" % self
         namespace = NAMESPACE.get(namespace,namespace)
         element = ET.Element(namespace+term, attrib={})
->>>>>>> Gluejar-master
         element.text = value
         self.opf[0].append(element)
         # note that info is ignoring namespace entirely
-        if term in self.info["metadata"]:
-            self.info["metadata"][term] = [self.info["metadata"][term], value]
+        if self.info["metadata"].has_key(term):
+            self.info["metadata"][term] = [self.info["metadata"][term] , value]
         else:
             self.info["metadata"][term] = value
-<<<<<<< HEAD
-
-    def additem(self, fileobject, href, mediatype):
-=======
     
     def _writestr(self, filepath, filebytes):
         self._write_files[filepath] = filebytes   
         
     def additem(self, fileObject, href, mediatype):
->>>>>>> Gluejar-master
         """
         Add a file to manifest only
 
-        :type fileobject: StringIO
-        :param fileobject:
+        :type fileObject: StringIO
+        :param fileObject:
         :type href: str
         :param href:
         :type mediatype: str
@@ -387,26 +334,20 @@ class EPUB(zipfile.ZipFile):
         """
         assert self.epub_mode != "r", "%s is not writable" % self
         element = ET.Element("item",
-                             attrib={"id": "id_" + str(uuid.uuid4())[:5], "href": href, "media-type": mediatype})
+                             attrib={"id": "id_"+str(uuid.uuid4())[:5], "href": href, "media-type": mediatype})
 
         try:
-<<<<<<< HEAD
-            self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileobject.getvalue())
-        except AttributeError:
-            self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileobject)
-=======
             self._writestr(os.path.join(self.root_folder, element.attrib["href"]), fileObject.getvalue().encode('utf-8'))
         except AttributeError:
             self._writestr(os.path.join(self.root_folder, element.attrib["href"]), fileObject)
->>>>>>> Gluejar-master
         self.opf[1].append(element)
         return element.attrib["id"]
 
-    def addpart(self, fileobject, href, mediatype, position=None, reftype="text", linear="yes"):
+    def addpart(self, fileObject, href, mediatype, position=None, reftype="text", linear="yes"):
         """
         Add a file as part of the epub file, i.e. to manifest and spine (and guide?)
 
-        :param fileobject: file to be inserted
+        :param fileObject: file to be inserted
         :param href: path inside the epub archive
         :param mediatype: mimetype of the fileObject
         :type position: int
@@ -414,30 +355,19 @@ class EPUB(zipfile.ZipFile):
         :param linear: linear="yes" or "no"
         :param reftype: type to assign in guide/reference
         """
-<<<<<<< HEAD
-        assert self.mode != "r", "%s is not writable" % self
-        fileid = self.additem(fileobject, href, mediatype)
-=======
         assert self.epub_mode != "r", "%s is not writable" % self
         fileid = self.additem(fileObject, href, mediatype)
->>>>>>> Gluejar-master
         itemref = ET.Element("itemref", attrib={"idref": fileid, "linear": linear})
         reference = ET.Element("reference", attrib={"title": href, "href": href, "type": reftype})
-        if position is None or position > len(self.opf[2]):
+        if position is None or position>len(self.opf[2]):
             self.opf[2].append(itemref)
             if self.info["guide"]:
                 self.opf[3].append(reference)
         else:
             self.opf[2].insert(position, itemref)
-<<<<<<< HEAD
-            if self.info["guide"] and len(self.opf[3]) >= position + 1:
-                self.opf[3].insert(position, reference)
-
-=======
             if self.info["guide"] and len(self.opf[3]) >= position+1:
                 self.opf[3].insert(position, reference) 
                                                                                                   
->>>>>>> Gluejar-master
     def writetodisk(self, filename):
         """
         Writes the in-memory archive to disk
@@ -445,32 +375,8 @@ class EPUB(zipfile.ZipFile):
         :type filename: str
         :param filename: name of the file to be writte
         """
-<<<<<<< HEAD
-        if self.mode == "r":
-            # The inferface should be consistent
-            new_zip = zipfile.ZipFile(filename, 'w')
-            for item in self.infolist():
-                new_zip.writestr(item.filename, self.read(item.filename))
-            new_zip.close()
-            return  # this is a bad habit
-        f = open(filename, "w")
-        try:
-            self.filename.seek(0)
-        except AttributeError:  # file must be closed first
-            self.close()
-            self.filename.seek(0)
-        f.write(self.filename.read())
-        f.close()
-
-    def __del__(self):
-        try:
-            self.fp.close()
-        except (ValueError, AttributeError):
-            pass
-=======
         filename.seek(0)
         new_zip = zipfile.ZipFile(filename, 'w')
         self._write_epub_zip(new_zip)
         new_zip.close()
         return
->>>>>>> Gluejar-master
