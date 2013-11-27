@@ -8,6 +8,9 @@ try:
     import lxml.etree as ET
 except ImportError:
     import xml.etree.ElementTree as ET
+    ET.register_namespace('dc', "http://purl.org/dc/elements/1.1/")
+    ET.register_namespace('opf', "http://www.idpf.org/2007/opf")
+    ET.register_namespace('ncx', "http://www.daisy.org/z3986/2005/ncx/")
 
 from metadata import Metadata
 
@@ -19,10 +22,6 @@ NAMESPACE = {
     "opf": "{http://www.idpf.org/2007/opf}",
     "ncx": "{http://www.daisy.org/z3986/2005/ncx/}"
 }
-
-ET.register_namespace('dc', "http://purl.org/dc/elements/1.1/")
-ET.register_namespace('opf', "http://www.idpf.org/2007/opf")
-ET.register_namespace('ncx', "http://www.daisy.org/z3986/2005/ncx/")
 
 
 class InvalidEpub(Exception):
@@ -108,13 +107,13 @@ class EPUB(zipfile.ZipFile):
             coverid = None
         self.cover = coverid  # This is the manifest ID of the cover
 
-        self._info["manifest"] = [{"id": x.get("id"),  # Build a list of manifest items
-                                  "href": x.get("href"),
-                                  "mimetype": x.get("media-type")}
-                                 for x in self.opf.find("{0}manifest".format(NAMESPACE["opf"])) if x.get("id")]
+        self._info["manifest"] = [{"id": x.get("id"), # Build a list of manifest items
+                                   "href": x.get("href"),
+                                   "mimetype": x.get("media-type")}
+                                  for x in self.opf.find("{0}manifest".format(NAMESPACE["opf"])) if x.get("id")]
 
         self._info["spine"] = [{"idref": x.get("idref")}  # Build a list of spine items
-                              for x in self.opf.find("{0}spine".format(NAMESPACE["opf"])) if x.get("idref")]
+                               for x in self.opf.find("{0}spine".format(NAMESPACE["opf"])) if x.get("idref")]
 
         # this looks expensive...
         # ... but less expensive than doing a lookup with ElementTree.find()
@@ -125,10 +124,10 @@ class EPUB(zipfile.ZipFile):
                     i["href"] = m.get("href")
 
         try:
-            self._info["guide"] = [{"href": x.get("href"),  # Build a list of guide items
-                                   "type": x.get("type"),
-                                   "title": x.get("title")}
-                                  for x in self.opf.find("{0}guide".format(NAMESPACE["opf"])) if x.get("href")]
+            self._info["guide"] = [{"href": x.get("href"), # Build a list of guide items
+                                    "type": x.get("type"),
+                                    "title": x.get("title")}
+                                   for x in self.opf.find("{0}guide".format(NAMESPACE["opf"])) if x.get("href")]
         except TypeError:  # The guide element is optional
             self._info["guide"] = None
 
@@ -138,14 +137,14 @@ class EPUB(zipfile.ZipFile):
                                                                          self.opf.get("unique-identifier"))).text
         except AttributeError:
             raise InvalidEpub   # Cannot process an EPUB without unique-identifier
-                                # attribute of the package element
-                                # Get and parse the TOC
+            # attribute of the package element
+            # Get and parse the TOC
         toc_id = self.opf[2].get("toc")
         expr = ".//{0}item[@id='{1:s}']".format(NAMESPACE["opf"], toc_id)
         toc_name = self.opf.find(expr).get("href")
         self.ncx_path = os.path.join(self.root_folder, toc_name)
         self.ncx = ET.fromstring(self.read(self.ncx_path))
-        self.contents = [{"name": i[0][0].text or "None",  # Build a list of toc elements
+        self.contents = [{"name": i[0][0].text or "None", # Build a list of toc elements
                           "src": os.path.join(self.root_folder, i[1].get("src")),
                           "id": i.get("id")}
                          for i in self.ncx.iter("{0}navPoint".format(NAMESPACE["ncx"]))]    # The iter method
@@ -163,9 +162,9 @@ class EPUB(zipfile.ZipFile):
         self.uid = '%s' % uuid.uuid4()
 
         self._info = {"metadata": {},
-                     "manifest": [],
-                     "spine": [],
-                     "guide": []}
+                      "manifest": [],
+                      "spine": [],
+                      "guide": []}
 
         self.writestr('mimetype', "application/epub+zip")
         self.writestr('META-INF/container.xml', self._containerxml())
@@ -228,7 +227,7 @@ class EPUB(zipfile.ZipFile):
         else:
             try:
                 global TMP                  # in-memory copy of existing opf-ncx. When the epub gets re-init,
-                                            # it loses track of modifications
+                # it loses track of modifications
                 TMP["opf"] = self.opf
                 TMP["ncx"] = self.ncx
                 self._safeclose()
@@ -242,11 +241,12 @@ class EPUB(zipfile.ZipFile):
         Writes the empty or modified opf-ncx files before closing the zipfile
         """
         if self.mode != "r":
-            self._delete(self.opf_path, self.ncx_path)  # see following horrible hack:
-                                                        # zipfile cannot manage overwriting on the archive
-                                                        # this basically RECREATES the epub from scratch
-                                                        # and is sure slow as hell
-                                                        # ... and a recipe for disaster.
+            self._delete(self.opf_path, self.ncx_path)
+            # see following horrible hack:
+            # zipfile cannot manage overwriting on the archive
+            # this basically RECREATES the epub from scratch
+            # and is sure slow as hell
+            # ... and a recipe for disaster.
             self.opf = TMP["opf"]
             self.ncx = TMP["ncx"]  # get back the temporary copies
 
@@ -331,7 +331,7 @@ class EPUB(zipfile.ZipFile):
         :param paths: files to be deleted inside EPUB file
         """
         global FLO  # File-Like-Object: this is obviously wrong: any better idea?
-                    # Also, the variable name is questionable
+        # Also, the variable name is questionable
         FLO = StringIO()
         new_zip = zipfile.ZipFile(FLO, 'w')
         for item in self.infolist():
@@ -427,7 +427,7 @@ class EPUB(zipfile.ZipFile):
             for item in self.infolist():
                 new_zip.writestr(item.filename, self.read(item.filename))
             new_zip.close()
-            return  # this is a bad habit
+            return # this is a bad habit
         f = open(filename, "w")
         try:
             self.filename.seek(0)
