@@ -427,7 +427,7 @@ class EPUB(zipfile.ZipFile):
             for item in self.infolist():
                 new_zip.writestr(item.filename, self.read(item.filename))
             new_zip.close()
-            return # this is a bad habit
+            return  # this is a bad habit
         f = open(filename, "w")
         try:
             self.filename.seek(0)
