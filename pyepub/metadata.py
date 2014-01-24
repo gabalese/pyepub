@@ -12,7 +12,6 @@ try:
 except ImportError:
     import xml.etree.ElementTree as Etree
     for k, v in NAMESPACES.iteritems():
-        # register the namespaces
         Etree.register_namespace(k, v)
 
 inv_namespace = {v: k for k, v in NAMESPACES.iteritems()}
@@ -53,7 +52,18 @@ class Metadata(dict):
             new_key = Etree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1])
             new_key.text = value
             self.opf[0].append(new_key)
-        # The interface should be consistent with a xml.etree.Element
+            # The interface should be consistent with a xml.etree.Element
+
+    def __delitem__(self, key):
+        super(Metadata, self).__delitem__(key)
+        key_tuple = key.split(":")
+        if len(key_tuple) < 2:
+            key_tuple.insert(0, "")
+        try:
+            tmp = self.opf.find(".//{0}{1}".format(NAMESPACES[key_tuple[0]], key_tuple[1]))
+        except KeyError:
+            raise Exception("Unregistered namespace {0}".format(key_tuple[0]))
+        self.opf[0].remove(tmp)
 
     def register_namespace(self, key, value):
         NAMESPACES[key] = value

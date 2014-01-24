@@ -14,6 +14,11 @@ TMP = {"opf": None, "ncx": None}
 file_like_object = None
 
 
+class InfoDict(dict):
+    def __getattr__(self, item):
+        return self[item]
+
+
 class InvalidEpub(Exception):
     pass
 
@@ -84,10 +89,10 @@ class EPUB(zipfile.ZipFile):
         self.root_folder = os.path.dirname(self.opf_path)   # Used to compose absolute paths for reading in zip archive
         self.opf = Etree.fromstring(self.read(self.opf_path))  # OPF tree
 
-        self.info = {"metadata": Metadata(self.opf),
-                     "manifest": [],
-                     "spine": [],
-                     "guide": []}
+        self.info = InfoDict({"metadata": Metadata(self.opf),
+                              "manifest": [],
+                              "spine": [],
+                              "guide": []})
 
         # Get id of the cover in <meta name="cover" />
         try:
