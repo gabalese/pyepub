@@ -38,6 +38,9 @@ class Metadata(dict):
         super(Metadata, self).__init__(temporary_dict)
 
     def __setitem__(self, key, value):
+        if isinstance(value, dict):
+            self._attrib(key, value)
+            return
         super(Metadata, self).__setitem__(key, value)
         key_tuple = key.split(":")
         if len(key_tuple) < 2:
@@ -64,6 +67,22 @@ class Metadata(dict):
         except KeyError:
             raise Exception("Unregistered namespace {0}".format(key_tuple[0]))
         self.opf[0].remove(tmp)
+
+    def _attrib(self, key, dic):
+        assert isinstance(dic, dict), ".attrib expects a dictionary of attributes"
+        key_tuple = key.split(":")
+        if len(key_tuple) < 2:
+            key_tuple.insert(0, "")
+        try:
+            tmp = self.opf.find(".//{0}{1}".format(NAMESPACES[key_tuple[0]], key_tuple[1]))
+        except KeyError:
+            raise Exception("Unregistered namespace {0}".format(key_tuple[0]))
+        try:
+            tmp.attrib = dic
+        except AttributeError:
+            new_key = Etree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1], attrib=dic)
+            new_key.text = tmp.value
+            self.opf[0].append(new_key)
 
     def register_namespace(self, key, value):
         NAMESPACES[key] = value
