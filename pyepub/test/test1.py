@@ -1,8 +1,10 @@
 from pyepub import EPUB
+import xml.etree.ElementTree as ET
 
-x = EPUB("pyepub/diavolo.epub")
+x = EPUB("diavolo.epub", "a")
 
-print x.info["metadata"]["dc:language"]
-x.info["metadata"]["dc:language"] = "bag"
-print x.info["metadata"]["dc:language"]
-print [(x.tag, x.text) for x in x.opf.iter()]
+print x.info
+print " "
+x.info["metadata"].register_namespace("po", "{http://www.alese.it/opf}")
+x.info["metadata"]["po:dio"] = "ciao"
+print ET.tostring(x.opf)

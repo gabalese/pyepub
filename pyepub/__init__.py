@@ -3,25 +3,15 @@ import os
 import uuid
 from StringIO import StringIO
 import datetime
+from metadata import Metadata, NAMESPACES
 
 try:
-    import lxml.etree as ET
+    import lxml.etree as Etree
 except ImportError:
-    import xml.etree.ElementTree as ET
-    ET.register_namespace('dc', "http://purl.org/dc/elements/1.1/")
-    ET.register_namespace('opf', "http://www.idpf.org/2007/opf")
-    ET.register_namespace('ncx', "http://www.daisy.org/z3986/2005/ncx/")
-
-from metadata import Metadata
+    import xml.etree.ElementTree as Etree
 
 TMP = {"opf": None, "ncx": None}
-FLO = None
-
-NAMESPACE = {
-    "dc": "{http://purl.org/dc/elements/1.1/}",
-    "opf": "{http://www.idpf.org/2007/opf}",
-    "ncx": "{http://www.daisy.org/z3986/2005/ncx/}"
-}
+file_like_object = None
 
 
 class InvalidEpub(Exception):
@@ -48,7 +38,7 @@ class EPUB(zipfile.ZipFile):
                 assert not os.path.exists(filename), \
                     "Can't overwrite existing file: %s" % filename
             self.filename = filename
-            zipfile.ZipFile.__init__(self, self.filename, mode="w")
+            super(EPUB, self).__init__(self.filename, mode="w")
             self.__init__write()
         elif mode == "a":
             assert not isinstance(filename, StringIO), \
@@ -62,10 +52,10 @@ class EPUB(zipfile.ZipFile):
             initfile = StringIO()
             initfile.write(tmp.read())
             tmp.close()
-            zipfile.ZipFile.__init__(self, initfile, mode="a")
+            super(EPUB, self).__init__(initfile, mode="a")
             self.__init__read(initfile)
         else:  # retrocompatibility?
-            zipfile.ZipFile.__init__(self, filename, mode="r")
+            super(EPUB, self).__init__(filename, mode="r")
             self.__init__read(filename)
 
     def __init__read(self, filename):
@@ -85,69 +75,69 @@ class EPUB(zipfile.ZipFile):
             raise InvalidEpub
         try:
             # There MUST be a full path attribute on first grandchild...
-            self.opf_path = ET.fromstring(f)[0][0].get("full-path")
+            self.opf_path = Etree.fromstring(f)[0][0].get("full-path")
         except IndexError:
             #  ...else the file is invalid.
             print "The %s file is not a valid OCF." % str(filename)
             raise InvalidEpub
 
         self.root_folder = os.path.dirname(self.opf_path)   # Used to compose absolute paths for reading in zip archive
-        self.opf = ET.fromstring(self.read(self.opf_path))  # OPF tree
+        self.opf = Etree.fromstring(self.read(self.opf_path))  # OPF tree
 
-        self._info = {"metadata": Metadata(self.opf),
-                      "manifest": [],
-                      "spine": [],
-                      "guide": []}
+        self.info = {"metadata": Metadata(self.opf),
+                     "manifest": [],
+                     "spine": [],
+                     "guide": []}
 
         # Get id of the cover in <meta name="cover" />
         try:
-            coverid = self.opf.find('.//{0}meta[@name="cover"]'.format(NAMESPACE["opf"])).get("content")
+            coverid = self.opf.find('.//{0}meta[@name="cover"]'.format(NAMESPACES["opf"])).get("content")
         except AttributeError:
             # It's a facultative field, after all
             coverid = None
         self.cover = coverid  # This is the manifest ID of the cover
 
-        self._info["manifest"] = [{"id": x.get("id"), # Build a list of manifest items
-                                   "href": x.get("href"),
-                                   "mimetype": x.get("media-type")}
-                                  for x in self.opf.find("{0}manifest".format(NAMESPACE["opf"])) if x.get("id")]
+        self.info["manifest"] = [{"id": x.get("id"),  # Build a list of manifest items
+                                  "href": x.get("href"),
+                                  "mimetype": x.get("media-type")}
+                                 for x in self.opf.find("{0}manifest".format(NAMESPACES["opf"])) if x.get("id")]
 
-        self._info["spine"] = [{"idref": x.get("idref")}  # Build a list of spine items
-                               for x in self.opf.find("{0}spine".format(NAMESPACE["opf"])) if x.get("idref")]
+        self.info["spine"] = [{"idref": x.get("idref")}  # Build a list of spine items
+                              for x in self.opf.find("{0}spine".format(NAMESPACES["opf"])) if x.get("idref")]
 
         # this looks expensive...
         # ... but less expensive than doing a lookup with ElementTree.find()
-        for i in self._info["spine"]:
+        for i in self.info["spine"]:
             ref = i.get("idref")
-            for m in self._info["manifest"]:
+            for m in self.info["manifest"]:
                 if m.get("id") == ref:
                     i["href"] = m.get("href")
 
         try:
-            self._info["guide"] = [{"href": x.get("href"), # Build a list of guide items
-                                    "type": x.get("type"),
-                                    "title": x.get("title")}
-                                   for x in self.opf.find("{0}guide".format(NAMESPACE["opf"])) if x.get("href")]
+            self.info["guide"] = [{"href": x.get("href"),  # Build a list of guide items
+                                   "type": x.get("type"),
+                                   "title": x.get("title")}
+                                  for x in self.opf.find("{0}guide".format(NAMESPACES["opf"])) if x.get("href")]
         except TypeError:  # The guide element is optional
-            self._info["guide"] = None
+            self.info["guide"] = None
 
         # Document identifier
         try:
-            self.id = self.opf.find('.//{0}identifier[@id="{1}"]'.format(NAMESPACE["dc"],
+            self.id = self.opf.find('.//{0}identifier[@id="{1}"]'.format(NAMESPACES["dc"],
                                                                          self.opf.get("unique-identifier"))).text
         except AttributeError:
             raise InvalidEpub   # Cannot process an EPUB without unique-identifier
             # attribute of the package element
             # Get and parse the TOC
         toc_id = self.opf[2].get("toc")
-        expr = ".//{0}item[@id='{1:s}']".format(NAMESPACE["opf"], toc_id)
+        expr = ".//{0}item[@id='{1:s}']".format(NAMESPACES["opf"], toc_id)
         toc_name = self.opf.find(expr).get("href")
         self.ncx_path = os.path.join(self.root_folder, toc_name)
-        self.ncx = ET.fromstring(self.read(self.ncx_path))
-        self.contents = [{"name": i[0][0].text or "None", # Build a list of toc elements
+        self.ncx = Etree.fromstring(self.read(self.ncx_path))
+        self.contents = [{"name": i[0][0].text or "None",  # Build a list of toc elements
                           "src": os.path.join(self.root_folder, i[1].get("src")),
                           "id": i.get("id")}
-                         for i in self.ncx.iter("{0}navPoint".format(NAMESPACE["ncx"]))]    # The iter method
+                         for i in self.ncx.iter("{0}navPoint".format(NAMESPACES["ncx"]))]    # The iter method
         # loops over nested
         # navPoints
 
@@ -161,62 +151,58 @@ class EPUB(zipfile.ZipFile):
         self.root_folder = "OEBPS"
         self.uid = '%s' % uuid.uuid4()
 
-        self._info = {"metadata": {},
-                      "manifest": [],
-                      "spine": [],
-                      "guide": []}
+        self.info = {"metadata": {},
+                     "manifest": [],
+                     "spine": [],
+                     "guide": []}
 
         self.writestr('mimetype', "application/epub+zip")
         self.writestr('META-INF/container.xml', self._containerxml())
-        self._info["metadata"]["creator"] = "py-clave server"
-        self._info["metadata"]["title"] = ""
-        self._info["metadata"]["language"] = ""
+        self.info["metadata"]["creator"] = "py-clave server"
+        self.info["metadata"]["title"] = ""
+        self.info["metadata"]["language"] = ""
 
         # Problem is: you can't overwrite file contents with python ZipFile
         # so you must add contents BEFORE finalizing the file
         # calling close() method.
 
-        self.opf = ET.fromstring(self._init_opf())  # opf property is always a ElementTree
-        self.ncx = ET.fromstring(self._init_ncx())  # so is ncx. Consistent with self.(opf|ncx) built by __init_read()
+        self.opf = Etree.fromstring(self._init_opf())  # opf property is always a ElementTree
+        self.ncx = Etree.fromstring(self._init_ncx())  # Consistent with self.(opf|ncx) built by __init_read()
 
-        self.writestr(self.opf_path, ET.tostring(self.opf, encoding="UTF-8"))  # temporary opf & ncx
-        self.writestr(self.ncx_path, ET.tostring(self.ncx, encoding="UTF-8"))  # will be re-init on close()
+        self.writestr(self.opf_path, Etree.tostring(self.opf, encoding="UTF-8"))  # temporary opf & ncx
+        self.writestr(self.ncx_path, Etree.tostring(self.ncx, encoding="UTF-8"))  # will be re-init on close()
 
     @property
     def author(self):
-        return self._info["metadata"]["creator"]
+        return self.info["metadata"]["creator"]
 
     @author.setter
     def author(self, value):
-        tmp = self.opf.find(".//{0}creator".format(NAMESPACE["dc"]))
+        tmp = self.opf.find(".//{0}creator".format(NAMESPACES["dc"]))
         tmp.text = value
-        self._info["metadata"]["creator"] = value
-
-    @property
-    def info(self):
-        return self._info
+        self.info["metadata"]["creator"] = value
 
     @property
     def title(self):
-        return self._info["metadata"]["title"]
+        return self.info["metadata"]["title"]
 
     @title.setter
     def title(self, value):
-        tmp = self.opf.find(".//{0}title".format(NAMESPACE["dc"]))
+        tmp = self.opf.find(".//{0}title".format(NAMESPACES["dc"]))
         tmp.text = value
         ncx_title = self.ncx.find("{http://www.daisy.org/z3986/2005/ncx/}docTitle")[0]
         ncx_title.text = value
-        self._info["metadata"]["title"] = value
+        self.info["metadata"]["title"] = value
 
     @property
     def language(self):
-        return self._info["metadata"]["language"]
+        return self.info["metadata"]["language"]
 
     @language.setter
     def language(self, value):
-        tmp = self.opf.find(".//{0}language".format(NAMESPACE["dc"]))
+        tmp = self.opf.find(".//{0}language".format(NAMESPACES["dc"]))
         tmp.text = value
-        self._info["metadata"]["language"] = value
+        self.info["metadata"]["language"] = value
 
     def close(self):
         if self.fp is None:     # Check file status
@@ -250,9 +236,9 @@ class EPUB(zipfile.ZipFile):
             self.opf = TMP["opf"]
             self.ncx = TMP["ncx"]  # get back the temporary copies
 
-        self.writestr(self.opf_path, ET.tostring(self.opf, encoding="UTF-8"))
-        self.writestr(self.ncx_path, ET.tostring(self.ncx, encoding="UTF-8"))
-        self.__init__read(FLO)  # We may still need info dict of a closed EPUB
+        self.writestr(self.opf_path, Etree.tostring(self.opf, encoding="UTF-8"))
+        self.writestr(self.ncx_path, Etree.tostring(self.ncx, encoding="UTF-8"))
+        self.__init__read(file_like_object)  # We may still need info dict of a closed EPUB
 
     def _init_opf(self):
         """
@@ -330,42 +316,19 @@ class EPUB(zipfile.ZipFile):
         :type paths: str
         :param paths: files to be deleted inside EPUB file
         """
-        global FLO  # File-Like-Object: this is obviously wrong: any better idea?
+        global file_like_object  # File-Like-Object: this is obviously wrong: any better idea?
         # Also, the variable name is questionable
-        FLO = StringIO()
-        new_zip = zipfile.ZipFile(FLO, 'w')
+        file_like_object = StringIO()
+        new_zip = zipfile.ZipFile(file_like_object, 'w')
         for item in self.infolist():
             if item.filename not in paths:
                 try:
                     new_zip.writestr(item.filename, self.read(item.filename))
                 except zipfile.BadZipfile:
                     pass
-        zipfile.ZipFile.close(self)     # Don't know why
-        new_zip.close()                 # but it works, don't ever touch
-        zipfile.ZipFile.__init__(self, FLO, mode="a")
-
-    def addmetadata(self, term, value, namespace='dc'):
-        """
-        Add an metadata entry 
-
-        :type term: str
-        :param term: element name/tag for metadata item
-        :type value: str
-        :param value: a value
-        :type namespace: str
-        :param namespace. either a '{URI}' or a registered prefix ('dc', 'opf', 'ncx') are currently built-in
-        """
-        raise DeprecationWarning("addmetadata is deprecated. Add items to info dict.")
-        assert self.mode != "r", "%s is not writable" % self
-        namespace = NAMESPACE.get(namespace, namespace)
-        element = ET.Element(namespace + term, attrib={})
-        element.text = value
-        self.opf[0].append(element)
-        # note that info is ignoring namespace entirely
-        if term in self._info["metadata"]:
-            self._info["metadata"][term] = [self._info["metadata"][term], value]
-        else:
-            self._info["metadata"][term] = value
+        super(EPUB, self).close()  # don't know why, but it works so don't dare to touch
+        new_zip.close()
+        super(EPUB, self).__init__(file_like_object, mode="a")
 
     def additem(self, fileobject, href, mediatype):
         """
@@ -379,8 +342,8 @@ class EPUB(zipfile.ZipFile):
         :param mediatype:
         """
         assert self.mode != "r", "%s is not writable" % self
-        element = ET.Element("item",
-                             attrib={"id": "id_" + str(uuid.uuid4())[:5], "href": href, "media-type": mediatype})
+        element = Etree.Element("item",
+                                attrib={"id": "id_" + str(uuid.uuid4())[:5], "href": href, "media-type": mediatype})
 
         try:
             self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileobject.getvalue())
@@ -403,15 +366,15 @@ class EPUB(zipfile.ZipFile):
         """
         assert self.mode != "r", "%s is not writable" % self
         fileid = self.additem(fileobject, href, mediatype)
-        itemref = ET.Element("itemref", attrib={"idref": fileid, "linear": linear})
-        reference = ET.Element("reference", attrib={"title": href, "href": href, "type": reftype})
+        itemref = Etree.Element("itemref", attrib={"idref": fileid, "linear": linear})
+        reference = Etree.Element("reference", attrib={"title": href, "href": href, "type": reftype})
         if position is None or position > len(self.opf[2]):
             self.opf[2].append(itemref)
-            if self._info["guide"]:
+            if self.info["guide"]:
                 self.opf[3].append(reference)
         else:
             self.opf[2].insert(position, itemref)
-            if self._info["guide"] and len(self.opf[3]) >= position + 1:
+            if self.info["guide"] and len(self.opf[3]) >= position + 1:
                 self.opf[3].insert(position, reference)
 
     def writetodisk(self, filename):
@@ -421,6 +384,7 @@ class EPUB(zipfile.ZipFile):
         :type filename: str
         :param filename: name of the file to be writte
         """
+        self.close()
         if self.mode == "r":
             # The inferface should be consistent
             new_zip = zipfile.ZipFile(filename, 'w')
@@ -428,14 +392,15 @@ class EPUB(zipfile.ZipFile):
                 new_zip.writestr(item.filename, self.read(item.filename))
             new_zip.close()
             return  # this is a bad habit
-        f = open(filename, "w")
-        try:
-            self.filename.seek(0)
-        except AttributeError:  # file must be closed first
-            self.close()
-            self.filename.seek(0)
-        f.write(self.filename.read())
-        f.close()
+        else:
+            f = open(filename, "w")
+            try:
+                self.filename.seek(0)
+            except AttributeError:  # file must be closed first
+                self.close()
+                self.filename.seek(0)
+            f.write(self.filename.read())
+            f.close()
 
     def __del__(self):
         try:
