@@ -13,7 +13,7 @@ NAMESPACE = {
 
 inv_NAMESPACE = {v: k for k, v in NAMESPACE.iteritems()}
 
-ns = re.compile(r"\{.*?\}")
+ns = re.compile(r"{.*?}")
 
 
 class Metadata(dict):
@@ -32,10 +32,10 @@ class Metadata(dict):
             else:
                 temporary_dict[tag] = [temporary_dict[tag], i.text or i.attrib]
 
-        dict.__init__(self, temporary_dict)
+        super(Metadata, self).__init__(temporary_dict)
 
     def __setitem__(self, key, value):
-        dict.__setitem__(self, key, value)
+        super(Metadata, self).__setitem__(key, value)
         key_tuple = key.split(":")
         if len(key_tuple) < 2:
             key_tuple.insert(0, "")
