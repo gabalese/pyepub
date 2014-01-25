@@ -3,7 +3,7 @@ import os
 import uuid
 from StringIO import StringIO
 import datetime
-from metadata import Metadata, NAMESPACES
+from metadata import NAMESPACES, Metadata, Manifest
 
 try:
     import lxml.etree as Etree
@@ -102,10 +102,8 @@ class EPUB(zipfile.ZipFile):
             coverid = None
         self.cover = coverid  # This is the manifest ID of the cover
 
-        self.info["manifest"] = [{"id": x.get("id"),  # Build a list of manifest items
-                                  "href": x.get("href"),
-                                  "mimetype": x.get("media-type")}
-                                 for x in self.opf.find("{0}manifest".format(NAMESPACES["opf"])) if x.get("id")]
+        # self.info["manifest"] = [x for x in self.opf.find("{0}manifest".format(NAMESPACES["opf"])) if x.get("id")]
+        self.info["manifest"] = Manifest(self.opf)
 
         self.info["spine"] = [{"idref": x.get("idref")}  # Build a list of spine items
                               for x in self.opf.find("{0}spine".format(NAMESPACES["opf"])) if x.get("idref")]

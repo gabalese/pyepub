@@ -1,5 +1,4 @@
 import re
-from collections import OrderedDict
 
 NAMESPACES = {
     "dc": "{http://purl.org/dc/elements/1.1/}",
@@ -8,7 +7,7 @@ NAMESPACES = {
 }
 
 try:
-    import lxml.etree as Etree
+    from lxml import etree as Etree
 except ImportError:
     import xml.etree.ElementTree as Etree
     for k, v in NAMESPACES.iteritems():
@@ -34,7 +33,7 @@ class Metadata(dict):
                 temporary_dict[tag] = i.text or i.attrib
             else:
                 temporary_dict[tag] = [temporary_dict[tag], i.text or i.attrib]
-
+        self.opf = opf[0]
         super(Metadata, self).__init__(temporary_dict)
 
     def __getitem__(self, key):
@@ -64,7 +63,7 @@ class Metadata(dict):
         except AttributeError:
             new_key = Etree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1])
             new_key.text = value
-            self.opf[0].append(new_key)
+            self.opf.append(new_key)
             # The interface should be consistent with a xml.etree.Element
 
     def __delitem__(self, key):
@@ -76,7 +75,7 @@ class Metadata(dict):
             tmp = self.opf.find(".//{0}{1}".format(NAMESPACES[key_tuple[0]], key_tuple[1]))
         except KeyError:
             raise Exception("Unregistered namespace {0}".format(key_tuple[0]))
-        self.opf[0].remove(tmp)
+        self.opf.remove(tmp)
 
     def _attrib(self, key, dic):
         assert isinstance(dic, dict), ".attrib expects a dictionary of attributes"
@@ -92,7 +91,7 @@ class Metadata(dict):
         except AttributeError:
             new_key = Etree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1], attrib=dic)
             new_key.text = tmp.value
-            self.opf[0].append(new_key)
+            self.opf.append(new_key)
 
     def register_namespace(self, key, value):
         NAMESPACES[key] = value
@@ -104,8 +103,23 @@ class Metadata(dict):
             pass
 
 
-class Manifest(OrderedDict):
-    pass
+class Manifest(list):
+
+    def __init__(self, opf):
+        self.opf = opf[1]
+        self.innerist = [x for x in opf.find("{0}manifest".format(NAMESPACES["opf"])) if x.get("id")]
+        super(Manifest, self).__init__(self.innerist)
+
+    def __repr__(self):
+        return str([x.attrib for x in self.innerist])
+
+    def append(self, p_object):
+        super(Manifest, self).append(p_object)
+        self.opf.append(p_object)
+
+    def insert(self, index, p_object):
+        super(Manifest, self).insert(index, p_object)
+        self.opf.insert(index, p_object)
 
 
 class Spine(dict):
