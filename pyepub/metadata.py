@@ -37,6 +37,16 @@ class Metadata(dict):
 
         super(Metadata, self).__init__(temporary_dict)
 
+    def __getitem__(self, key):
+        key_tuple = key.split(":")
+        if len(key_tuple) < 2:
+            key_tuple.insert(0, "")
+        try:
+            tmp = self.opf.find(".//{0}{1}".format(NAMESPACES[key_tuple[0]], key_tuple[1]))
+        except KeyError:
+            raise Exception("Unregistered namespace {0}".format(key_tuple[0]))
+        return tmp
+
     def __setitem__(self, key, value):
         if isinstance(value, dict):
             self._attrib(key, value)
