@@ -29,12 +29,12 @@ class EpubTests(unittest.TestCase):
     def setUp(self):
         # get a small epub test file as a file-like object
         self.epub2file = NamedTemporaryFile(delete=False)
-        test_file_content = urllib2.urlopen('http://www.hxa.name/articles/content/EpubGuide-hxa7241.epub')
+        test_file_content = urllib2.urlopen('http://dev.alese.it/book/urn:uuid:d928ac1a-f3c3-11e2-94df-001cc0a62c0b/download')
         self.epub2file.write(test_file_content.read())
         self.epub2file.seek(0)
         # get an epub with no guide element
         self.epub2file2 = NamedTemporaryFile(delete=False)
-        test_file_content2 = urllib2.urlopen('http://www.gutenberg.org/ebooks/2701.epub.noimages')
+        test_file_content2 = urllib2.urlopen('http://dev.alese.it/book/EO_EB_00001/download')
         self.epub2file2.write(test_file_content2.read())
         self.epub2file2.seek(0)
 
@@ -42,17 +42,17 @@ class EpubTests(unittest.TestCase):
         epub = EPUB(self.epub2file)
         self.assertNotEqual(epub.filename, None)
         self.assertEqual(len(epub.opf), 4)
-        self.assertEqual(len(epub.opf[0]), 11)  # metadata items
-        self.assertEqual(len(epub.opf[1]), 11)  # manifest items
-        self.assertEqual(len(epub.opf[2]), 8)   # spine items
-        self.assertEqual(len(epub.opf[3]), 3)   # guide items
+        self.assertEqual(len(epub.opf[0]), 15)  # metadata items
+        self.assertEqual(len(epub.opf[1]), 49)  # manifest items
+        self.assertEqual(len(epub.opf[2]), 35)   # spine items
+        self.assertEqual(len(epub.opf[3]), 35)   # guide items
 
     def test_addpart(self):
         epub = EPUB(self.epub2file, mode='a')
         self.assertNotEqual(epub.filename, None)
         part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
         epub.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
-        self.assertEqual(len(epub.opf[2]), 9)  # spine items
+        self.assertEqual(len(epub.opf[2]), 36)  # spine items
 
     def test_addpart_noguide(self):
         epub2 = EPUB(self.epub2file2, mode='a')
