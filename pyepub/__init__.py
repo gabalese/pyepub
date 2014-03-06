@@ -5,10 +5,7 @@ from StringIO import StringIO
 import datetime
 from metadata import NAMESPACES, Metadata, Manifest
 
-try:
-    import lxml.etree as Etree
-except ImportError:
-    import xml.etree.ElementTree as Etree
+import lxml.etree as Etree
 
 TMP = {"opf": None, "ncx": None}
 file_like_object = None
