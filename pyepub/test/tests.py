@@ -66,3 +66,6 @@ class EpubTests(unittest.TestCase):
         self.assertEqual(epub.info.metadata['dc:test'].text, 'GOOD')
 
     # TODO: moar test, plz
+
+if __name__ == '__main__':
+    unittest.main()
