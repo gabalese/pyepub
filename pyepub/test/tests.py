@@ -4,10 +4,16 @@ from tempfile import NamedTemporaryFile
 from StringIO import StringIO
 from pyepub import EPUB
 
-try:
-    import lxml.etree as ET
-except ImportError:
-    import xml.etree.ElementTree as ET
+
+class EpubNewTests(unittest.TestCase):
+    def setUp(self):
+        self.file = EPUB("diavolo.epub", "a")
+
+    def test_metadata(self):
+        self.assertEqual(len(self.file.info.manifest), 59)
+        self.assertGreaterEqual(len(self.file.info), 3)
+        if len(self.file.info) > 3:
+            self.assertIsInstance(self.file.info.spine, list)
 
 
 class EpubTests(unittest.TestCase):
@@ -50,9 +56,8 @@ class EpubTests(unittest.TestCase):
 
     def test_addmetadata(self):
         epub = EPUB(self.epub2file, mode='a')
-        #epub.addmetadata('test', 'GOOD')
         epub.info["metadata"]["dc:test"] = "GOOD"
         self.assertTrue(epub.opf.find('.//{http://purl.org/dc/elements/1.1/}test') is not None)
-        self.assertEqual(epub.info['metadata']['dc:test'], 'GOOD')
+        self.assertEqual(epub.info.metadata['dc:test'].text, 'GOOD')
 
     # TODO: moar test, plz

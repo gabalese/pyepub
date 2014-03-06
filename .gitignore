@@ -3,6 +3,7 @@
 *.dot
 *.pyc
 reports
+.idea/*
 ENV
 .DS_Store
 build
