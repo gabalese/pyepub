@@ -15,6 +15,11 @@ class EpubNewTests(unittest.TestCase):
         if len(self.file.info) > 3:
             self.assertIsInstance(self.file.info.spine, list)
 
+    def test_writetodisk(self):
+        tmp = NamedTemporaryFile(delete=True)
+        self.file.writetodisk(tmp)
+        self.assertIsNot(tmp.name, None)
+
 
 class EpubTests(unittest.TestCase):
     def setUp(self):

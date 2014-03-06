@@ -35,6 +35,11 @@ class EPUB(zipfile.ZipFile):
         :type mode: str
         :param mode: "w" or "r", mode to init the zipfile
         """
+        self._write_files = {}  # a dict of files written to the archive
+        self._delete_files = []  # a list of files to delete from the archive
+        self.epub_mode = mode
+        self.writename = None
+
         if mode == "w":
             if not isinstance(filename, StringIO):
                 assert not os.path.exists(filename), \
@@ -204,41 +209,35 @@ class EPUB(zipfile.ZipFile):
         tmp.text = value
         self.info["metadata"]["language"] = value
 
-    def close(self):
-        if self.fp is None:     # Check file status
-            return
-        if self.mode == "r":    # check file mode
-            zipfile.ZipFile.close(self)
-            return
-        else:
-            try:
-                global TMP                  # in-memory copy of existing opf-ncx. When the epub gets re-init,
-                # it loses track of modifications
-                TMP["opf"] = self.opf
-                TMP["ncx"] = self.ncx
-                self._safeclose()
-                zipfile.ZipFile.close(self)     # give back control to superclass close method
-            except RuntimeError:            # zipfile.__del__ destructor calls close(), ignore
-                return
-
     def _safeclose(self):
         """
         Preliminary operations before closing an EPUB
         Writes the empty or modified opf-ncx files before closing the zipfile
         """
-        if self.mode != "r":
-            self._delete(self.opf_path, self.ncx_path)
-            # see following horrible hack:
-            # zipfile cannot manage overwriting on the archive
-            # this basically RECREATES the epub from scratch
-            # and is sure slow as hell
-            # ... and a recipe for disaster.
-            self.opf = TMP["opf"]
-            self.ncx = TMP["ncx"]  # get back the temporary copies
+        if self.epub_mode == 'w':
+            self.writetodisk(self.writename)
+        else:
+            self.writetodisk(self.filename)
 
-        self.writestr(self.opf_path, Etree.tostring(self.opf, encoding="UTF-8"))
-        self.writestr(self.ncx_path, Etree.tostring(self.ncx, encoding="UTF-8"))
-        self.__init__read(file_like_object)  # We may still need info dict of a closed EPUB
+    def _write_epub_zip(self, epub_zip):
+        """
+        writes the epub to the specified writable zipfile instance
+
+        :type epub_zip: an empty instance of zipfile.Zipfile, mode=w
+        :param epub_zip: zip file to write
+        """
+        epub_zip.writestr('mimetype', "application/epub+zip")       # requirement of epub container format
+        epub_zip.writestr('META-INF/container.xml', self._containerxml())
+        epub_zip.writestr(self.opf_path, Etree.tostring(self.opf, encoding="UTF-8"))
+        epub_zip.writestr(self.ncx_path, Etree.tostring(self.ncx, encoding="UTF-8"))
+        paths = ['mimetype', 'META-INF/container.xml',
+                 self.opf_path, self.ncx_path] + self._write_files.keys() + self._delete_files
+        if self.epub_mode != 'w':
+            for item in self.infolist():
+                if item.filename not in paths:
+                    epub_zip.writestr(item.filename, self.read(item.filename))
+        for key in self._write_files.keys():
+            epub_zip.writestr(key, self._write_files[key])
 
     def _init_opf(self):
         """
@@ -308,27 +307,16 @@ class EPUB(zipfile.ZipFile):
     def _delete(self, *paths):
         """
         Delete archive member
-        Basically a hack: zince zipfile can't natively overwrite or delete resources,
-        a new archive is created from scratch to a StringIO file object.
-        The starting file is *never* overwritten.
-        To write the new file to disk, use the writefiletodisk() instance method.
 
-        :type paths: str
+        :type paths: [str]
         :param paths: files to be deleted inside EPUB file
         """
-        global file_like_object  # File-Like-Object: this is obviously wrong: any better idea?
-        # Also, the variable name is questionable
-        file_like_object = StringIO()
-        new_zip = zipfile.ZipFile(file_like_object, 'w')
-        for item in self.infolist():
-            if item.filename not in paths:
-                try:
-                    new_zip.writestr(item.filename, self.read(item.filename))
-                except zipfile.BadZipfile:
-                    pass
-        super(EPUB, self).close()  # don't know why, but it works so don't dare to touch
-        new_zip.close()
-        super(EPUB, self).__init__(file_like_object, mode="a")
+        for path in paths:
+            try:
+                del self._write_files[path]
+            except KeyError:
+                pass
+            self._delete_files.append(path)
 
     def additem(self, fileobject, href, mediatype):
         """
@@ -381,26 +369,14 @@ class EPUB(zipfile.ZipFile):
         """
         Writes the in-memory archive to disk
 
-        :type filename: str
-        :param filename: name of the file to be writte
+        :type filename: file
+        :param filename: name of the file to be written
         """
-        self.close()
-        if self.mode == "r":
-            # The inferface should be consistent
-            new_zip = zipfile.ZipFile(filename, 'w')
-            for item in self.infolist():
-                new_zip.writestr(item.filename, self.read(item.filename))
-            new_zip.close()
-            return  # this is a bad habit
-        else:
-            f = open(filename, "w")
-            try:
-                self.filename.seek(0)
-            except AttributeError:  # file must be closed first
-                self.close()
-                self.filename.seek(0)
-            f.write(self.filename.read())
-            f.close()
+
+        filename.seek(0)
+        new_zip = zipfile.ZipFile(filename, 'w')
+        self._write_epub_zip(new_zip)
+        new_zip.close()
 
     def __del__(self):
         try:
