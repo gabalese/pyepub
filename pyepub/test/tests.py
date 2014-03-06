@@ -7,10 +7,14 @@ from pyepub import EPUB
 
 class EpubNewTests(unittest.TestCase):
     def setUp(self):
-        self.file = EPUB("diavolo.epub", "a")
+        remotefile = urllib2.urlopen('http://dev.alese.it/book/urn:uuid:c72fb312-f83e-11e2-82c4-001cc0a62c0b/download')
+        testfile = NamedTemporaryFile(delete=True)
+        testfile.write(remotefile.read())
+        testfile.seek(0)
+        self.file = EPUB(testfile)
 
     def test_metadata(self):
-        self.assertEqual(len(self.file.info.manifest), 59)
+        self.assertEqual(len(self.file.info.manifest), 31)
         self.assertGreaterEqual(len(self.file.info), 3)
         if len(self.file.info) > 3:
             self.assertIsInstance(self.file.info.spine, list)
