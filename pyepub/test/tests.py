@@ -66,8 +66,12 @@ class EpubTests(unittest.TestCase):
     def test_addmetadata(self):
         epub = EPUB(self.epub2file, mode='a')
         epub.info["metadata"]["dc:test"] = "GOOD"
+        epub.info["metadata"]['dc:prova'] = {"token": "token_content"}
+        epub.info["metadata"]['dc:prova'] = "contenuto"
         self.assertTrue(epub.opf.find('.//{http://purl.org/dc/elements/1.1/}test') is not None)
         self.assertEqual(epub.info.metadata['dc:test'].text, 'GOOD')
+        self.assertEqual(epub.info["metadata"]['dc:prova'].attrib, {"token": "token_content"})
+        self.assertEqual(epub.info["metadata"]['dc:prova'].text, "contenuto")
 
     # TODO: moar test, plz
 

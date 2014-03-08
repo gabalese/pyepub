@@ -64,7 +64,6 @@ class Metadata(dict):
             new_key = Etree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1])
             new_key.text = value
             self.opf.append(new_key)
-            # The interface should be consistent with a xml.etree.Element
 
     def __delitem__(self, key):
         super(Metadata, self).__delitem__(key)
@@ -90,7 +89,10 @@ class Metadata(dict):
             tmp.attrib = dic
         except AttributeError:
             new_key = Etree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1], attrib=dic)
-            new_key.text = tmp.value
+            try:
+                new_key.text = tmp.value
+            except AttributeError:
+                pass
             self.opf.append(new_key)
 
     def register_namespace(self, key, value):
