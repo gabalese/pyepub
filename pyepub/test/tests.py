@@ -73,7 +73,5 @@ class EpubTests(unittest.TestCase):
         self.assertEqual(epub.info["metadata"]['dc:prova'].attrib, {"token": "token_content"})
         self.assertEqual(epub.info["metadata"]['dc:prova'].text, "contenuto")
 
-    # TODO: moar test, plz
-
 if __name__ == '__main__':
     unittest.main()
