@@ -3,6 +3,7 @@ import urllib2
 from tempfile import NamedTemporaryFile
 from StringIO import StringIO
 from pyepub import EPUB
+from lxml import etree
 
 
 class EpubNewTests(unittest.TestCase):
@@ -72,6 +73,8 @@ class EpubTests(unittest.TestCase):
         self.assertEqual(epub.info.metadata['dc:test'].text, 'GOOD')
         self.assertEqual(epub.info["metadata"]['dc:prova'].attrib, {"token": "token_content"})
         self.assertEqual(epub.info["metadata"]['dc:prova'].text, "contenuto")
+        self.assertEqual(epub.opf.find(".//{http://purl.org/dc/elements/1.1/}prova").text, "contenuto")
+        self.assertEqual(epub.opf.find(".//{http://purl.org/dc/elements/1.1/}prova").attrib["token"], "token_content")
 
 if __name__ == '__main__':
     unittest.main()
