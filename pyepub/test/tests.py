@@ -1,9 +1,10 @@
+from __future__ import print_function
 import unittest
 import urllib2
 from tempfile import NamedTemporaryFile
 from StringIO import StringIO
 from pyepub import EPUB
-from lxml import etree
+from zipfile import ZipFile
 
 
 class EpubNewTests(unittest.TestCase):
@@ -26,10 +27,16 @@ class EpubNewTests(unittest.TestCase):
         self.assertIsNot(tmp.name, None)
 
     def test_write_new_file(self):
+
         fakefile = StringIO()
         output = EPUB(fakefile, "w")
         tmp = NamedTemporaryFile(delete=True)
+        part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
+        output.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
         output.writetodisk(tmp)
+
+        rezip = ZipFile(tmp, "r")
+        self.assertTrue(len(rezip.filelist) == 5)
 
 
 class EpubTests(unittest.TestCase):

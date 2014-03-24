@@ -232,8 +232,8 @@ class EPUB(zipfile.ZipFile):
         epub_zip.writestr(self.ncx_path, Etree.tostring(self.ncx, encoding="UTF-8"))
         paths = ['mimetype', 'META-INF/container.xml',
                  self.opf_path, self.ncx_path] + self._write_files.keys() + self._delete_files
-        if self.epub_mode != 'w':
-            for item in self.infolist():
+        if self.epub_mode != 'r':
+            for item in self.filelist:
                 if item.filename not in paths:
                     epub_zip.writestr(item.filename, self.read(item.filename))
         for key in self._write_files.keys():
