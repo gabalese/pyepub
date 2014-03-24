@@ -369,11 +369,9 @@ class EPUB(zipfile.ZipFile):
         """
         Writes the in-memory archive to disk
 
-        :type filename: file
-        :param filename: name of the file to be written
         """
-
-        filename.seek(0)
+        if isinstance(filename, file) or isinstance(filename, StringIO):
+            filename.seek(0)
         new_zip = zipfile.ZipFile(filename, 'w')
         self._write_epub_zip(new_zip)
         new_zip.close()

@@ -25,6 +25,12 @@ class EpubNewTests(unittest.TestCase):
         self.file.writetodisk(tmp)
         self.assertIsNot(tmp.name, None)
 
+    def test_write_new_file(self):
+        fakefile = StringIO()
+        output = EPUB(fakefile, "w")
+        tmp = NamedTemporaryFile(delete=True)
+        output.writetodisk(tmp)
+
 
 class EpubTests(unittest.TestCase):
     def setUp(self):

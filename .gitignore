@@ -9,3 +9,4 @@ ENV
 build
 logs/*
 *.ipynb
+test_assets
