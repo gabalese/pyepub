@@ -3,7 +3,7 @@ import os
 import uuid
 from StringIO import StringIO
 import datetime
-from metadata import NAMESPACES, Metadata, Manifest
+from metadata import NAMESPACES, Metadata, Manifest, Spine
 
 import lxml.etree as Etree
 
@@ -11,20 +11,13 @@ TMP = {"opf": None, "ncx": None}
 file_like_object = None
 
 
-class InfoDict(dict):
-    def __getattr__(self, item):
-        return self[item]
-
-
-class InvalidEpub(Exception):
-    pass
-
-
 class EPUB(zipfile.ZipFile):
     """
     EPUB file representation class.
 
     """
+    _write_files = {}
+    _delete_files = []
 
     def __init__(self, filename, mode="r"):
         """
@@ -35,19 +28,21 @@ class EPUB(zipfile.ZipFile):
         :type mode: str
         :param mode: "w" or "r", mode to init the zipfile
         """
-        self._write_files = {}  # a dict of files written to the archive
-        self._delete_files = []  # a list of files to delete from the archive
+
         self.epub_mode = mode
-        self.writename = None
+        self.filename = filename
 
         if mode == "w":
-            if not isinstance(filename, StringIO):
-                assert not os.path.exists(filename), \
-                    "Can't overwrite existing file: %s" % filename
-            self.filename = filename
+
+            if not isinstance(self.filename, StringIO):
+                assert not os.path.exists(self.filename), \
+                    "Can't overwrite existing file: %s" % self.filename
+
             super(EPUB, self).__init__(self.filename, mode="w")
             self.__init__write()
+
         elif mode == "a":
+
             assert not isinstance(filename, StringIO), \
                 "Can't append to StringIO object, use write instead: %s" % filename
             if isinstance(filename, str):
@@ -72,9 +67,7 @@ class EPUB(zipfile.ZipFile):
         :type filename: str or StringIO()
         :param filename: File to be processed
         """
-        self.filename = filename
         try:
-            # Read the container
             f = self.read("META-INF/container.xml")
         except KeyError:
             # By specification, there MUST be a container.xml in EPUB
@@ -91,60 +84,50 @@ class EPUB(zipfile.ZipFile):
         self.root_folder = os.path.dirname(self.opf_path)   # Used to compose absolute paths for reading in zip archive
         self.opf = Etree.fromstring(self.read(self.opf_path))  # OPF tree
 
+        try:
+            identifier_xpath_expression = r'.//{0}identifier[@id="{1}"]'.format(NAMESPACES["dc"], self.opf.get("unique-identifier"))
+            self.id = self.opf.find(identifier_xpath_expression).text
+        except AttributeError:
+            # Cannot process an EPUB without unique-identifier
+            raise InvalidEpub
+
+        try:
+            cover_xpath_expression = r'.//{0}meta[@name="cover"]'.format(NAMESPACES["opf"])
+            self.cover = self.opf.find(cover_xpath_expression).get("content")
+        except AttributeError:
+            self.cover = None
+
         self.info = InfoDict({"metadata": Metadata(self.opf),
-                              "manifest": [],
-                              "spine": [],
+                              "manifest": Manifest(self.opf),
+                              "spine": Spine(self.opf),
                               "guide": []})
 
-        # Get id of the cover in <meta name="cover" />
-        try:
-            coverid = self.opf.find('.//{0}meta[@name="cover"]'.format(NAMESPACES["opf"])).get("content")
-        except AttributeError:
-            # It's a facultative field, after all
-            coverid = None
-        self.cover = coverid  # This is the manifest ID of the cover
-
-        # self.info["manifest"] = [x for x in self.opf.find("{0}manifest".format(NAMESPACES["opf"])) if x.get("id")]
-        self.info["manifest"] = Manifest(self.opf)
-
-        self.info["spine"] = [{"idref": x.get("idref")}  # Build a list of spine items
-                              for x in self.opf.find("{0}spine".format(NAMESPACES["opf"])) if x.get("idref")]
-
-        # this looks expensive...
-        # ... but less expensive than doing a lookup with ElementTree.find()
-        for i in self.info["spine"]:
-            ref = i.get("idref")
-            for m in self.info["manifest"]:
-                if m.get("id") == ref:
-                    i["href"] = m.get("href")
+        # Link spine elements with manifest id
+        for spine_element in self.info["spine"]:
+            ref = spine_element.get("idref")
+            for manifest_element in self.info["manifest"]:
+                if manifest_element.get("id") == ref:
+                    spine_element["href"] = manifest_element.get("href")
 
         try:
-            self.info["guide"] = [{"href": x.get("href"),  # Build a list of guide items
-                                   "type": x.get("type"),
-                                   "title": x.get("title")}
-                                  for x in self.opf.find("{0}guide".format(NAMESPACES["opf"])) if x.get("href")]
+            self.info["guide"] = [
+                {"href": x.get("href"), "type": x.get("type"), "title": x.get("title")}
+                for x in self.opf.find("{0}guide".format(NAMESPACES["opf"])) if x.get("href")
+            ]
         except TypeError:  # The guide element is optional
-            self.info["guide"] = None
+            # TODO: Why TypeError?
+            self.info["guide"] = []
 
-        # Document identifier
-        try:
-            self.id = self.opf.find('.//{0}identifier[@id="{1}"]'.format(NAMESPACES["dc"],
-                                                                         self.opf.get("unique-identifier"))).text
-        except AttributeError:
-            raise InvalidEpub   # Cannot process an EPUB without unique-identifier
-            # attribute of the package element
             # Get and parse the TOC
         toc_id = self.opf[2].get("toc")
         expr = ".//{0}item[@id='{1:s}']".format(NAMESPACES["opf"], toc_id)
         toc_name = self.opf.find(expr).get("href")
         self.ncx_path = os.path.join(self.root_folder, toc_name)
         self.ncx = Etree.fromstring(self.read(self.ncx_path))
-        self.contents = [{"name": i[0][0].text or "None",  # Build a list of toc elements
+        self.contents = [{"name": i[0][0].text or "None",
                           "src": os.path.join(self.root_folder, i[1].get("src")),
                           "id": i.get("id")}
-                         for i in self.ncx.iter("{0}navPoint".format(NAMESPACES["ncx"]))]    # The iter method
-        # loops over nested
-        # navPoints
+                         for i in self.ncx.iter("{0}navPoint".format(NAMESPACES["ncx"]))]
 
     def __init__write(self):
         """
@@ -162,20 +145,15 @@ class EPUB(zipfile.ZipFile):
                      "guide": []}
 
         self.writestr('mimetype', "application/epub+zip")
-        self.writestr('META-INF/container.xml', self._containerxml())
-        self.info["metadata"]["creator"] = "py-clave server"
+        self.writestr('META-INF/container.xml', self._empty_container_xml())
         self.info["metadata"]["title"] = ""
         self.info["metadata"]["language"] = ""
 
-        # Problem is: you can't overwrite file contents with python ZipFile
-        # so you must add contents BEFORE finalizing the file
-        # calling close() method.
+        self.opf = Etree.fromstring(self._empty_opf())
+        self.ncx = Etree.fromstring(self._empty_ncx())
 
-        self.opf = Etree.fromstring(self._init_opf())  # opf property is always a ElementTree
-        self.ncx = Etree.fromstring(self._init_ncx())  # Consistent with self.(opf|ncx) built by __init_read()
-
-        self.writestr(self.opf_path, Etree.tostring(self.opf, encoding="UTF-8"))  # temporary opf & ncx
-        self.writestr(self.ncx_path, Etree.tostring(self.ncx, encoding="UTF-8"))  # will be re-init on close()
+        self.writestr(self.opf_path, Etree.tostring(self.opf, encoding="UTF-8"))
+        self.writestr(self.ncx_path, Etree.tostring(self.ncx, encoding="UTF-8"))
 
     @property
     def author(self):
@@ -214,10 +192,8 @@ class EPUB(zipfile.ZipFile):
         Preliminary operations before closing an EPUB
         Writes the empty or modified opf-ncx files before closing the zipfile
         """
-        if self.epub_mode == 'w':
-            self.writetodisk(self.writename)
-        else:
-            self.writetodisk(self.filename)
+        assert self.epub_mode == 'w'
+        self.writetodisk(self.filename)
 
     def _write_epub_zip(self, epub_zip):
         """
@@ -227,19 +203,21 @@ class EPUB(zipfile.ZipFile):
         :param epub_zip: zip file to write
         """
         epub_zip.writestr('mimetype', "application/epub+zip")       # requirement of epub container format
-        epub_zip.writestr('META-INF/container.xml', self._containerxml())
+        epub_zip.writestr('META-INF/container.xml', self._empty_container_xml())
         epub_zip.writestr(self.opf_path, Etree.tostring(self.opf, encoding="UTF-8"))
         epub_zip.writestr(self.ncx_path, Etree.tostring(self.ncx, encoding="UTF-8"))
         paths = ['mimetype', 'META-INF/container.xml',
                  self.opf_path, self.ncx_path] + self._write_files.keys() + self._delete_files
+
         if self.epub_mode != 'r':
             for item in self.filelist:
                 if item.filename not in paths:
                     epub_zip.writestr(item.filename, self.read(item.filename))
+
         for key in self._write_files.keys():
             epub_zip.writestr(key, self._write_files[key])
 
-    def _init_opf(self):
+    def _empty_opf(self):
         """
         Constructor for empty OPF
         :type return: xml.minidom.Document
@@ -267,7 +245,7 @@ class EPUB(zipfile.ZipFile):
         doc = opf_tmpl.format(uid=self.uid, date=today)
         return doc
 
-    def _init_ncx(self):
+    def _empty_ncx(self):
         """
         Constructor for empty OPF
         :type return: xml.minidom.Document
@@ -293,7 +271,7 @@ class EPUB(zipfile.ZipFile):
         ncx = ncx_tmpl.format(uid=self.uid, title="Default")
         return ncx
 
-    def _containerxml(self):
+    def _empty_container_xml(self):
         template = """<?xml version="1.0" encoding="UTF-8"?>
                     <container version="1.0"
                                xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
@@ -376,8 +354,11 @@ class EPUB(zipfile.ZipFile):
         self._write_epub_zip(new_zip)
         new_zip.close()
 
-    def __del__(self):
-        try:
-            self.fp.close()
-        except (ValueError, AttributeError):
-            pass
+
+class InfoDict(dict):
+    def __getattr__(self, item):
+        return self[item]
+
+
+class InvalidEpub(Exception):
+    pass

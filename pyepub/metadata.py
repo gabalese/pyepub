@@ -124,8 +124,12 @@ class Manifest(list):
         self.opf.insert(index, p_object)
 
 
-class Spine(dict):
-    pass
+class Spine(Manifest):
+
+    def __init__(self, opf):
+        __temporary_list = [{"idref": x.get("idref")}
+                            for x in opf.find("{0}spine".format(NAMESPACES["opf"])) if x.get("idref")]
+        super(Manifest, self).__init__(__temporary_list)
 
 
 class Guide(dict):
