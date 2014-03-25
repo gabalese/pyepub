@@ -54,7 +54,7 @@ class EpubTests(unittest.TestCase):
 
     def test_instantiation(self):
         epub = EPUB(self.epub2file)
-        self.assertNotEqual(epub.filename, None)
+        self.assertNotEqual(epub._filename, None)
         self.assertEqual(len(epub.opf), 4)
         self.assertEqual(len(epub.opf[0]), 15)  # metadata items
         self.assertEqual(len(epub.opf[1]), 49)  # manifest items

@@ -3,7 +3,7 @@ from tempfile import NamedTemporaryFile
 from pyepub import EPUB
 
 
-class TestsEpubFileOpen(unittest.TestCase):
+class TestEpubFileOpen(unittest.TestCase):
 
     def setUp(self):
         self.epubfile = NamedTemporaryFile(delete=True)
@@ -19,6 +19,17 @@ class TestEpubFileInit(unittest.TestCase):
     def setUp(self):
         self.epubfile = EPUB(open("test_assets/uragano.epub"), "r")
 
+    def test_epub_file_must_have_title(self):
+        self.assertEqual(u'L\u2019uragano di novembre', self.epubfile.info.metadata["dc:title"].text)
+
+    def test_epub_file_must_have_identifier(self):
+        self.assertEqual("9788866322702", self.epubfile.id)
+
+    def test_epub_file_must_have_identifier_with_attributes(self):
+        self.assertIsNot(len(self.epubfile.info.metadata["dc:creator"].attrib), 0)
+
+    def test_epub_file_must_have_identifier_from_opf(self):
+        self.assertEqual(self.epubfile.id, self.epubfile.info["metadata"]["dc:identifier"].text)
 
 if __name__ == "__main__":
     unittest.main()

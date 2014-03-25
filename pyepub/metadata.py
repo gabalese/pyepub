@@ -1,4 +1,5 @@
 import re
+from lxml import etree as Etree
 
 NAMESPACES = {
     "dc": "{http://purl.org/dc/elements/1.1/}",
@@ -6,19 +7,18 @@ NAMESPACES = {
     "ncx": "{http://www.daisy.org/z3986/2005/ncx/}"
 }
 
-try:
-    from lxml import etree as Etree
-except ImportError:
-    import xml.etree.ElementTree as Etree
-    for k, v in NAMESPACES.iteritems():
-        Etree.register_namespace(k, v)
-
 inv_namespace = {v: k for k, v in NAMESPACES.iteritems()}
 
-ns = re.compile(r"{.*?}")
+
+class InfoDict(dict):
+    def __getattr__(self, item):
+        return self[item]
 
 
 class Metadata(dict):
+
+    _ns = re.compile(r"{.*?}")
+
     def __init__(self, opf):
         """
         Init
@@ -28,7 +28,7 @@ class Metadata(dict):
         temporary_dict = {}
 
         for i in self.opf.find("{0}metadata".format(NAMESPACES["opf"])):
-            tag = ns.sub(inv_namespace[ns.findall(i.tag)[0]] + ":" or '', i.tag)
+            tag = self._ns.sub(inv_namespace[self._ns.findall(i.tag)[0]] + ":" or '', i.tag)
             if tag not in temporary_dict:
                 temporary_dict[tag] = i.text or i.attrib
             else:
