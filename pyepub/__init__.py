@@ -13,6 +13,7 @@ file_like_object = None
 
 
 class EPUB(zipfile.ZipFile):
+
     __write_files = {}
     __delete_files = []
 
@@ -71,7 +72,7 @@ class EPUB(zipfile.ZipFile):
         self.opf = elementtree.fromstring(self.read(self.opf_path))  # OPF tree
 
         try:
-            identifier_xpath_expression = r'.//{0}identifier[@id="{1}"]' \
+            identifier_xpath_expression = r'.//{0}identifier[@id="{1}"]'\
                 .format(NAMESPACES["dc"], self.opf.get("unique-identifier"))
             self.id = self.opf.find(identifier_xpath_expression).text
         except AttributeError:
@@ -84,11 +85,8 @@ class EPUB(zipfile.ZipFile):
         except AttributeError:
             self.cover = None
 
-        self.info = InfoDict(
-            {"metadata": Metadata(self.opf),
-             "manifest": Manifest(self.opf),
-             "spine": Spine(self.opf),
-             "guide": Guide(self.opf)})
+        self.info = InfoDict({"metadata": Metadata(self.opf), "manifest": Manifest(self.opf), "spine": Spine(self.opf),
+                              "guide": Guide(self.opf)})
 
         # Link spine elements with manifest id
         for spine_element, manifest_element in izip(self.info.spine, self.info.manifest):
@@ -101,7 +99,8 @@ class EPUB(zipfile.ZipFile):
         toc_name = self.opf.find(expr).get("href")
         self.ncx_path = os.path.join(self.root_folder, toc_name)
         self.ncx = elementtree.fromstring(self.read(self.ncx_path))
-        self.contents = [{"name": i[0][0].text or "None",
+
+        self.contents = [{"name": i[0][0].text or None,
                           "src": os.path.join(self.root_folder, i[1].get("src")),
                           "id": i.get("id")}
                          for i in self.ncx.iter("{0}navPoint".format(NAMESPACES["ncx"]))]

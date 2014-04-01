@@ -112,9 +112,6 @@ class Manifest(list):
         self.innerist = [x for x in opf.find("{0}manifest".format(NAMESPACES["opf"])) if x.get("id")]
         super(Manifest, self).__init__(self.innerist)
 
-    def __repr__(self):
-        return str([x.attrib for x in self.innerist])
-
     def append(self, p_object):
         super(Manifest, self).append(p_object)
         self.opf.append(p_object)
@@ -123,6 +120,14 @@ class Manifest(list):
         super(Manifest, self).insert(index, p_object)
         self.opf.insert(index, p_object)
 
+    def delete(self, index):
+        super(Manifest, self).pop(index)
+        to_remove = self.opf[index]
+        to_remove.getparent().remove(to_remove)
+
+    def __repr__(self):
+        return str([x.attrib for x in self.innerist])
+
 
 class Spine(Manifest):
 
@@ -130,6 +135,9 @@ class Spine(Manifest):
         self.innerist = [{"idref": x.get("idref")}
                          for x in opf.find("{0}spine".format(NAMESPACES["opf"])) if x.get("idref")]
         super(Manifest, self).__init__(self.innerist)
+
+    def __repr__(self):
+        return str([x for x in self.innerist])
 
 
 class Guide(Manifest):
@@ -143,3 +151,8 @@ class Guide(Manifest):
         except TypeError:
             self.innerist = []
         super(Manifest, self).__init__(self.innerist)
+
+    def __repr__(self):
+        return str([x for x in self.innerist])
+
+
