@@ -18,6 +18,7 @@ class EpubNewTests(unittest.TestCase):
     def test_metadata(self):
         self.assertEqual(len(self.file.info.manifest), 31)
         self.assertGreaterEqual(len(self.file.info), 3)
+        print(self.file.contents)
         if len(self.file.info) > 3:
             self.assertIsInstance(self.file.info.spine, list)
 

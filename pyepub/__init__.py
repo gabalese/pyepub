@@ -1,9 +1,10 @@
 import zipfile
 import os
 import uuid
+from itertools import izip
 from StringIO import StringIO
 import datetime
-from metadata import NAMESPACES, InfoDict, Metadata, Manifest, Spine
+from metadata import NAMESPACES, InfoDict, Metadata, Manifest, Spine, Guide
 
 import lxml.etree as elementtree
 
@@ -12,9 +13,8 @@ file_like_object = None
 
 
 class EPUB(zipfile.ZipFile):
-
-    _write_files = {}
-    _delete_files = []
+    __write_files = {}
+    __delete_files = []
 
     def __init__(self, filename, mode="r"):
         """
@@ -39,10 +39,9 @@ class EPUB(zipfile.ZipFile):
             assert not isinstance(filename, StringIO), \
                 "Can't append to StringIO object, use write instead: %s" % filename
             if isinstance(filename, str):
-                tmp = open(filename, "r")  # ensure that the input file is never-ever overwritten
+                tmp = open(filename, "r")
             else:
-                # filename is already a file like object
-                tmp = filename
+                tmp = filename or StringIO()
             tmp.seek(0)
             initfile = StringIO()
             initfile.write(tmp.read())
@@ -54,26 +53,25 @@ class EPUB(zipfile.ZipFile):
             self.__init__read()
 
     def __init__read(self):
-
         try:
             f = self.read("META-INF/container.xml")
         except KeyError:
             # By specification, there MUST be a container.xml in EPUB
-            print "The %s file is not a valid OCF."
+            print "The %s file is not a valid OCF." % self.filename
             raise InvalidEpub
         try:
             # There MUST be a full path attribute on first grandchild...
             self.opf_path = elementtree.fromstring(f)[0][0].get("full-path")
         except IndexError:
             #  ...else the file is invalid.
-            print "This file is not a valid OCF."
+            print "The %s file is not a valid OCF." % self.filename
             raise InvalidEpub
 
-        self.root_folder = os.path.dirname(self.opf_path)   # Used to compose absolute paths for reading in zip archive
+        self.root_folder = os.path.dirname(self.opf_path)  # Used to compose absolute paths for reading in zip archive
         self.opf = elementtree.fromstring(self.read(self.opf_path))  # OPF tree
 
         try:
-            identifier_xpath_expression = r'.//{0}identifier[@id="{1}"]'\
+            identifier_xpath_expression = r'.//{0}identifier[@id="{1}"]' \
                 .format(NAMESPACES["dc"], self.opf.get("unique-identifier"))
             self.id = self.opf.find(identifier_xpath_expression).text
         except AttributeError:
@@ -86,28 +84,18 @@ class EPUB(zipfile.ZipFile):
         except AttributeError:
             self.cover = None
 
-        self.info = InfoDict({"metadata": Metadata(self.opf),
-                              "manifest": Manifest(self.opf),
-                              "spine": Spine(self.opf),
-                              "guide": []})
+        self.info = InfoDict(
+            {"metadata": Metadata(self.opf),
+             "manifest": Manifest(self.opf),
+             "spine": Spine(self.opf),
+             "guide": Guide(self.opf)})
 
         # Link spine elements with manifest id
-        for spine_element in self.info["spine"]:
-            ref = spine_element.get("idref")
-            for manifest_element in self.info["manifest"]:
-                if manifest_element.get("id") == ref:
-                    spine_element["href"] = manifest_element.get("href")
+        for spine_element, manifest_element in izip(self.info.spine, self.info.manifest):
+            if manifest_element.get("id") == spine_element.get("idref"):
+                spine_element["href"] = manifest_element.get("href")
 
-        try:
-            self.info["guide"] = [
-                {"href": x.get("href"), "type": x.get("type"), "title": x.get("title")}
-                for x in self.opf.find("{0}guide".format(NAMESPACES["opf"])) if x.get("href")
-            ]
-        except TypeError:  # The guide element is optional
-            # TODO: Why TypeError?
-            self.info["guide"] = []
-
-            # Get and parse the TOC
+        # Get and parse the TOC
         toc_id = self.opf[2].get("toc")
         expr = ".//{0}item[@id='{1:s}']".format(NAMESPACES["opf"], toc_id)
         toc_name = self.opf.find(expr).get("href")
@@ -137,29 +125,26 @@ class EPUB(zipfile.ZipFile):
         self.__init__read()
 
     def _safeclose(self):
-
         assert self._epub_mode == 'w'
         self.writetodisk(self._filename)
 
     def _write_epub_zip(self, epub_zip):
-
-        epub_zip.writestr('mimetype', "application/epub+zip")       # requirement of epub container format
+        epub_zip.writestr('mimetype', "application/epub+zip")  # requirement of epub container format
         epub_zip.writestr('META-INF/container.xml', self._empty_container_xml())
         epub_zip.writestr(self.opf_path, elementtree.tostring(self.opf, encoding="UTF-8"))
         epub_zip.writestr(self.ncx_path, elementtree.tostring(self.ncx, encoding="UTF-8"))
         paths = ['mimetype', 'META-INF/container.xml',
-                 self.opf_path, self.ncx_path] + self._write_files.keys() + self._delete_files
+                 self.opf_path, self.ncx_path] + self.__write_files.keys() + self.__delete_files
 
         if self._epub_mode != 'r':
             for item in self.filelist:
                 if item.filename not in paths:
                     epub_zip.writestr(item.filename, self.read(item.filename))
 
-        for key in self._write_files.keys():
-            epub_zip.writestr(key, self._write_files[key])
+        for key in self.__write_files.keys():
+            epub_zip.writestr(key, self.__write_files[key])
 
     def _empty_opf(self):
-
         today = datetime.date.today()
         opf_tmpl = """<?xml version="1.0" encoding="utf-8" standalone="yes"?>
                         <package xmlns="http://www.idpf.org/2007/opf" unique-identifier="BookId" version="2.0">
@@ -183,7 +168,6 @@ class EPUB(zipfile.ZipFile):
         return doc
 
     def _empty_ncx(self):
-
         ncx_tmpl = """<?xml version="1.0" encoding="utf-8"?>
                         <!DOCTYPE ncx PUBLIC "-//NISO//DTD ncx 2005-1//EN"
                            "http://www.daisy.org/z3986/2005/ncx-2005-1.dtd">
@@ -216,16 +200,14 @@ class EPUB(zipfile.ZipFile):
         return template % self.opf_path
 
     def _delete(self, *paths):
-
         for path in paths:
             try:
-                del self._write_files[path]
+                del self.__write_files[path]
             except KeyError:
                 pass
-            self._delete_files.append(path)
+            self.__delete_files.append(path)
 
     def additem(self, fileobject, href, mediatype):
-
         assert self.mode != "r", "%s is not writable" % self
         element = elementtree.Element("item",
                                       attrib={"id": "id_" + str(uuid.uuid4())[:5],
@@ -239,7 +221,6 @@ class EPUB(zipfile.ZipFile):
         return element.attrib["id"]
 
     def addpart(self, fileobject, href, mediatype, position=None, reftype="text", linear="yes"):
-
         assert self.mode != "r", "%s is not writable" % self
         fileid = self.additem(fileobject, href, mediatype)
         itemref = elementtree.Element("itemref", attrib={"idref": fileid, "linear": linear})
@@ -254,7 +235,6 @@ class EPUB(zipfile.ZipFile):
                 self.opf[3].insert(position, reference)
 
     def writetodisk(self, filename):
-
         if isinstance(filename, file) or isinstance(filename, StringIO):
             filename.seek(0)
         new_zip = zipfile.ZipFile(filename, 'w')

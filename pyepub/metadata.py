@@ -1,5 +1,5 @@
 import re
-from lxml import etree as Etree
+from lxml import etree as elementtree
 
 NAMESPACES = {
     "dc": "{http://purl.org/dc/elements/1.1/}",
@@ -61,7 +61,7 @@ class Metadata(dict):
         try:
             tmp.text = value
         except AttributeError:
-            new_key = Etree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1])
+            new_key = elementtree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1])
             new_key.text = value
             self.opf.append(new_key)
 
@@ -88,7 +88,7 @@ class Metadata(dict):
         try:
             tmp.attrib = dic
         except AttributeError:
-            new_key = Etree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1], attrib=dic)
+            new_key = elementtree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1], attrib=dic)
             try:
                 new_key.text = tmp.value
             except AttributeError:
@@ -127,10 +127,19 @@ class Manifest(list):
 class Spine(Manifest):
 
     def __init__(self, opf):
-        __temporary_list = [{"idref": x.get("idref")}
-                            for x in opf.find("{0}spine".format(NAMESPACES["opf"])) if x.get("idref")]
-        super(Manifest, self).__init__(__temporary_list)
+        self.innerist = [{"idref": x.get("idref")}
+                         for x in opf.find("{0}spine".format(NAMESPACES["opf"])) if x.get("idref")]
+        super(Manifest, self).__init__(self.innerist)
 
 
-class Guide(dict):
-    pass
+class Guide(Manifest):
+
+    def __init__(self, opf):
+        try:
+            self.innerist = [
+                {"href": x.get("href"), "type": x.get("type"), "title": x.get("title")}
+                for x in opf.find("{0}guide".format(NAMESPACES["opf"])) if x.get("href")
+            ]
+        except TypeError:
+            self.innerist = []
+        super(Manifest, self).__init__(self.innerist)
