@@ -16,7 +16,6 @@ class InfoDict(dict):
 
 
 class Metadata(dict):
-
     _ns = re.compile(r"{.*?}")
 
     def __init__(self, opf):
@@ -61,7 +60,7 @@ class Metadata(dict):
         try:
             tmp.text = value
         except AttributeError:
-            new_key = elementtree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1])
+            new_key = elementtree.Element(NAMESPACES[key_tuple[0]] + key_tuple[1])
             new_key.text = value
             self.opf.append(new_key)
 
@@ -88,7 +87,7 @@ class Metadata(dict):
         try:
             tmp.attrib = dic
         except AttributeError:
-            new_key = elementtree.Element(NAMESPACES[key_tuple[0]]+key_tuple[1], attrib=dic)
+            new_key = elementtree.Element(NAMESPACES[key_tuple[0]] + key_tuple[1], attrib=dic)
             try:
                 new_key.text = tmp.value
             except AttributeError:
@@ -106,7 +105,6 @@ class Metadata(dict):
 
 
 class Manifest(list):
-
     def __init__(self, opf):
         self.opf = opf[1]
         self.innerist = [x for x in opf.find("{0}manifest".format(NAMESPACES["opf"])) if x.get("id")]
@@ -130,7 +128,6 @@ class Manifest(list):
 
 
 class Spine(Manifest):
-
     def __init__(self, opf):
         self.innerist = [{"idref": x.get("idref")}
                          for x in opf.find("{0}spine".format(NAMESPACES["opf"])) if x.get("idref")]
@@ -141,7 +138,6 @@ class Spine(Manifest):
 
 
 class Guide(Manifest):
-
     def __init__(self, opf):
         try:
             self.innerist = [

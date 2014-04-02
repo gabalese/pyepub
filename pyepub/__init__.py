@@ -13,7 +13,6 @@ file_like_object = None
 
 
 class EPUB(zipfile.ZipFile):
-
     __write_files = {}
     __delete_files = []
 
@@ -72,7 +71,7 @@ class EPUB(zipfile.ZipFile):
         self.opf = elementtree.fromstring(self.read(self.opf_path))  # OPF tree
 
         try:
-            identifier_xpath_expression = r'.//{0}identifier[@id="{1}"]'\
+            identifier_xpath_expression = r'.//{0}identifier[@id="{1}"]' \
                 .format(NAMESPACES["dc"], self.opf.get("unique-identifier"))
             self.id = self.opf.find(identifier_xpath_expression).text
         except AttributeError:
@@ -116,11 +115,10 @@ class EPUB(zipfile.ZipFile):
         self.uid = '%s' % uuid.uuid4()
         self.opf = elementtree.fromstring(self._empty_opf())
         self.ncx = elementtree.fromstring(self._empty_ncx())
-        self.writestr(self.opf_path, elementtree.tostring(self.opf, encoding="UTF-8"))
-        self.writestr(self.ncx_path, elementtree.tostring(self.ncx, encoding="UTF-8"))
-
         self.writestr('mimetype', "application/epub+zip")
         self.writestr('META-INF/container.xml', self._empty_container_xml())
+        self.writestr(self.opf_path, elementtree.tostring(self.opf, encoding="UTF-8"))
+        self.writestr(self.ncx_path, elementtree.tostring(self.ncx, encoding="UTF-8"))
         self.__init__read()
 
     def _safeclose(self):
@@ -128,12 +126,7 @@ class EPUB(zipfile.ZipFile):
         self.writetodisk(self._filename)
 
     def _write_epub_zip(self, epub_zip):
-        epub_zip.writestr('mimetype', "application/epub+zip")  # requirement of epub container format
-        epub_zip.writestr('META-INF/container.xml', self._empty_container_xml())
-        epub_zip.writestr(self.opf_path, elementtree.tostring(self.opf, encoding="UTF-8"))
-        epub_zip.writestr(self.ncx_path, elementtree.tostring(self.ncx, encoding="UTF-8"))
-        paths = ['mimetype', 'META-INF/container.xml',
-                 self.opf_path, self.ncx_path] + self.__write_files.keys() + self.__delete_files
+        paths = [''] + self.__write_files.keys() + self.__delete_files
 
         if self._epub_mode != 'r':
             for item in self.filelist:
@@ -181,6 +174,12 @@ class EPUB(zipfile.ZipFile):
                            <text>{title}</text>
                         </docTitle>
                         <navMap>
+                        <navPoint id="navpoint0" playOrder="1">
+                            <navLabel>
+                            <text>Mapuche</text>
+                            </navLabel>
+                            <content src="mapuche_00000.html"/>
+                            </navPoint>
                         </navMap>
                         </ncx>"""
 
@@ -239,6 +238,12 @@ class EPUB(zipfile.ZipFile):
         new_zip = zipfile.ZipFile(filename, 'w')
         self._write_epub_zip(new_zip)
         new_zip.close()
+
+    def close(self):
+        if self.fp:
+            map(lambda item: self._delete(item.filename), self.filelist)
+            self._write_epub_zip(self)
+            super(EPUB, self).close()
 
 
 class InvalidEpub(Exception):
