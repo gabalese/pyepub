@@ -4,6 +4,8 @@ from tempfile import NamedTemporaryFile
 from StringIO import StringIO
 from pyepub import EPUB
 from zipfile import ZipFile
+from lxml import etree
+import os
 
 
 class EpubNewTests(unittest.TestCase):
@@ -36,6 +38,39 @@ class EpubNewTests(unittest.TestCase):
 
         rezip = ZipFile(tmp, "r")
         self.assertTrue(len(rezip.filelist) == 5)
+
+
+class TestNewFileFromPath(unittest.TestCase):
+
+    def test_write_new_file_string(self):
+        output = EPUB("randomname.epub", "w")
+        part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
+        output.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
+        output.writetodisk(output._filename)
+
+        rezip = EPUB("randomname.epub", "r")
+        self.assertGreater(len(rezip.info.manifest), 1)
+
+    def tearDown(self):
+        os.remove("randomname.epub")
+
+
+class TestNewFileFromStringIO(unittest.TestCase):
+
+    def test_write_new_file_stringio(self):
+        fakefile = StringIO()
+        output = EPUB(fakefile, "w")
+        output.info.metadata["dc:title"] = "Pierino porcospino"
+        part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
+        output.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
+        output.writetodisk("testfile.epub")
+        output.close()
+
+        prova = EPUB("testfile.epub", "r")
+        print etree.tostring(prova.opf)
+
+    def tearDown(self):
+        os.remove("testfile.epub")
 
 
 class EpubTests(unittest.TestCase):

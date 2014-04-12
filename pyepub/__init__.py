@@ -26,49 +26,32 @@ class EPUB(zipfile.ZipFile):
         :param mode: "w" or "r", mode to init the zipfile
         """
 
-        self._epub_mode = mode
-        self._filename = filename
+        self.__mode = mode
+        self.__filename = filename
 
-        if mode == "w":
-            if not isinstance(self._filename, StringIO):
-                assert not os.path.exists(self._filename), \
-                    "Can't overwrite existing file: %s" % self._filename
-            super(EPUB, self).__init__(self._filename, mode="w")
-            self.__init__write()
-        elif mode == "a":
-            assert not isinstance(filename, StringIO), \
-                "Can't append to StringIO object, use write instead: %s" % filename
-            if isinstance(filename, str):
-                tmp = open(filename, "r")
-            else:
-                tmp = filename or StringIO()
-            tmp.seek(0)
-            initfile = StringIO()
-            initfile.write(tmp.read())
-            tmp.close()
-            super(EPUB, self).__init__(initfile, mode="a")
-            self.__init__read()
-        else:
+        if mode == "r":
             super(EPUB, self).__init__(filename, mode="r")
             self.__init__read()
+        else:
+            raise NotImplementedError
 
     def __init__read(self):
         try:
             f = self.read("META-INF/container.xml")
         except KeyError:
             # By specification, there MUST be a container.xml in EPUB
-            print "The %s file is not a valid OCF." % self.filename
-            raise InvalidEpub
+            raise InvalidEpub("The %s file is not a valid OCF." % self.filename)
         try:
             # There MUST be a full path attribute on first grandchild...
             self.opf_path = elementtree.fromstring(f)[0][0].get("full-path")
         except IndexError:
             #  ...else the file is invalid.
-            print "The %s file is not a valid OCF." % self.filename
-            raise InvalidEpub
+            raise InvalidEpub("The %s file is not a valid OCF." % self.filename)
 
-        self.root_folder = os.path.dirname(self.opf_path)  # Used to compose absolute paths for reading in zip archive
-        self.opf = elementtree.fromstring(self.read(self.opf_path))  # OPF tree
+        # FIND EPUB ROOT FOLDER
+        self.root_folder = os.path.dirname(self.opf_path)
+        # BUILD OPF TREE
+        self.opf = elementtree.fromstring(self.read(self.opf_path))
 
         try:
             identifier_xpath_expression = r'.//{0}identifier[@id="{1}"]' \
@@ -76,15 +59,18 @@ class EPUB(zipfile.ZipFile):
             self.id = self.opf.find(identifier_xpath_expression).text
         except AttributeError:
             # Cannot process an EPUB without unique-identifier
-            raise InvalidEpub
+            raise InvalidEpub("No unique identifier supplied")
 
         try:
             cover_xpath_expression = r'.//{0}meta[@name="cover"]'.format(NAMESPACES["opf"])
             self.cover = self.opf.find(cover_xpath_expression).get("content")
         except AttributeError:
+            # Cover is facultative
             self.cover = None
 
-        self.info = InfoDict({"metadata": Metadata(self.opf), "manifest": Manifest(self.opf), "spine": Spine(self.opf),
+        self.info = InfoDict({"metadata": Metadata(self.opf),
+                              "manifest": Manifest(self.opf),
+                              "spine": Spine(self.opf),
                               "guide": Guide(self.opf)})
 
         # Link spine elements with manifest id
@@ -97,8 +83,11 @@ class EPUB(zipfile.ZipFile):
         expr = ".//{0}item[@id='{1:s}']".format(NAMESPACES["opf"], toc_id)
         toc_name = self.opf.find(expr).get("href")
         self.ncx_path = os.path.join(self.root_folder, toc_name)
+
+        # BUILD NCX TREE
         self.ncx = elementtree.fromstring(self.read(self.ncx_path))
 
+        # BUILD CONTENTS JSON
         self.contents = [{"name": i[0][0].text or None,
                           "src": os.path.join(self.root_folder, i[1].get("src")),
                           "id": i.get("id")}
@@ -117,8 +106,6 @@ class EPUB(zipfile.ZipFile):
         self.ncx = elementtree.fromstring(self._empty_ncx())
         self.writestr('mimetype', "application/epub+zip")
         self.writestr('META-INF/container.xml', self._empty_container_xml())
-        self.writestr(self.opf_path, elementtree.tostring(self.opf, encoding="UTF-8"))
-        self.writestr(self.ncx_path, elementtree.tostring(self.ncx, encoding="UTF-8"))
         self.__init__read()
 
     def _safeclose(self):
@@ -127,6 +114,8 @@ class EPUB(zipfile.ZipFile):
 
     def _write_epub_zip(self, epub_zip):
         paths = [''] + self.__write_files.keys() + self.__delete_files
+        self.writestr(self.opf_path, elementtree.tostring(self.opf, encoding="UTF-8"))
+        self.writestr(self.ncx_path, elementtree.tostring(self.ncx, encoding="UTF-8"))
 
         if self._epub_mode != 'r':
             for item in self.filelist:
@@ -174,12 +163,8 @@ class EPUB(zipfile.ZipFile):
                            <text>{title}</text>
                         </docTitle>
                         <navMap>
-                        <navPoint id="navpoint0" playOrder="1">
-                            <navLabel>
-                            <text>Mapuche</text>
-                            </navLabel>
-                            <content src="mapuche_00000.html"/>
-                            </navPoint>
+                        <navPoint>
+                        </navPoint>
                         </navMap>
                         </ncx>"""
 
@@ -238,12 +223,6 @@ class EPUB(zipfile.ZipFile):
         new_zip = zipfile.ZipFile(filename, 'w')
         self._write_epub_zip(new_zip)
         new_zip.close()
-
-    def close(self):
-        if self.fp:
-            map(lambda item: self._delete(item.filename), self.filelist)
-            self._write_epub_zip(self)
-            super(EPUB, self).close()
 
 
 class InvalidEpub(Exception):
