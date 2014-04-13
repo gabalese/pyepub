@@ -2,125 +2,59 @@ import unittest
 import urllib2
 from tempfile import NamedTemporaryFile
 from StringIO import StringIO
-from pyepub import EPUB
-from zipfile import ZipFile
-from lxml import etree
+from pyepub import EPUB, InvalidEpub
+from zipfile import ZipFile, BadZipfile
+import lxml.etree as elementtree
 import os
 
 
 class EpubNewTests(unittest.TestCase):
     def setUp(self):
-        remotefile = urllib2.urlopen('http://dev.alese.it/book/urn:uuid:c72fb312-f83e-11e2-82c4-001cc0a62c0b/download')
-        testfile = NamedTemporaryFile(delete=True)
-        testfile.write(remotefile.read())
-        testfile.seek(0)
-        self.file = EPUB(testfile)
+        self.epub_file = EPUB("test_assets/test_epub.epub", mode="r")
 
-    def test_metadata(self):
-        self.assertEqual(len(self.file.info.manifest), 31)
-        self.assertGreaterEqual(len(self.file.info), 3)
-        if len(self.file.info) > 3:
-            self.assertIsInstance(self.file.info.spine, list)
+    def test_epub_should_expose_filenames(self):
+        self.assertIsInstance(self.epub_file.list_of_files, list)
 
-    def test_writetodisk(self):
-        tmp = NamedTemporaryFile(delete=True)
-        self.file.writetodisk(tmp)
-        self.assertIsNot(tmp.name, None)
+    def test_list_of_files_must_equal_manifest_contents(self):
+        self.assertEquals(len(self.epub_file.list_of_files), len(self.epub_file.opf[1]))
 
-    def test_write_new_file(self):
+    def test_epub_should_have_a_opf(self):
+        self.assertTrue(self.epub_file.opf[0].tag == "{http://www.idpf.org/2007/opf}metadata")
 
-        fakefile = StringIO()
-        output = EPUB(fakefile, "w")
-        tmp = NamedTemporaryFile(delete=True)
-        part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
-        output.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
-        output.writetodisk(tmp)
+    def test_epub_should_expose_metadata_as_dictionary(self):
+        metadata = self.epub_file.info
+        self.assertIsInstance(metadata, dict)
 
-        rezip = ZipFile(tmp, "r")
-        self.assertTrue(len(rezip.filelist) == 5)
+    def test_spine_elements_must_link_with_manifest(self):
+        for element in self.epub_file.info["spine"]:
+            self.assertIsInstance(element, dict)
 
-
-class TestNewFileFromPath(unittest.TestCase):
-
-    def test_write_new_file_string(self):
-        output = EPUB("randomname.epub", "w")
-        part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
-        output.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
-        output.writetodisk(output._filename)
-
-        rezip = EPUB("randomname.epub", "r")
-        self.assertGreater(len(rezip.info.manifest), 1)
+    def test_contents_must_equal_toc_list(self):
+        self.assertEquals(len(self.epub_file.contents), len(self.epub_file.ncx[3]))
 
     def tearDown(self):
-        os.remove("randomname.epub")
+        self.epub_file.close()
 
 
-class TestNewFileFromStringIO(unittest.TestCase):
+class NoSuchFilename(unittest.TestCase):
+    def test_no_such_filename_returns_ioerror(self):
+        with self.assertRaises(IOError):
+            self.epub_file = EPUB("random_file", "r")
 
-    def test_write_new_file_stringio(self):
-        fakefile = StringIO()
-        output = EPUB(fakefile, "w")
-        output.info.metadata["dc:title"] = "Pierino porcospino"
-        part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
-        output.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
-        output.writetodisk("testfile.epub")
-        output.close()
+    def test_invalid_zipfile_throws_badzipfile(self):
+        with self.assertRaises(BadZipfile):
+            self.epub_file = EPUB(__file__)
 
-        prova = EPUB("testfile.epub", "r")
-        print etree.tostring(prova.opf)
-
-    def tearDown(self):
-        os.remove("testfile.epub")
+    def test_invalid_epub_file_throws_invalid_epubfile(self):
+        with self.assertRaises(InvalidEpub):
+            self.epub_file = EPUB("test_assets/invalid_epub.epub", "r")
 
 
-class EpubTests(unittest.TestCase):
-    def setUp(self):
-        # get a small epub test file as a file-like object
-        self.epub2file = NamedTemporaryFile(delete=False)
-        test_file_content = urllib2.urlopen('http://dev.alese.it/book/urn:uuid:d928ac1a-f3c3-11e2-94df-001cc0a62c0b/download')
-        self.epub2file.write(test_file_content.read())
-        self.epub2file.seek(0)
-        # get an epub with no guide element
-        self.epub2file2 = NamedTemporaryFile(delete=False)
-        test_file_content2 = urllib2.urlopen('http://dev.alese.it/book/EO_EB_00001/download')
-        self.epub2file2.write(test_file_content2.read())
-        self.epub2file2.seek(0)
+class TestNewEPUB(unittest.TestCase):
+    @unittest.skip("To implement")
+    def test_new_epub_creation(self):
+        self.epub_file = EPUB("ciao.epub", "w")
 
-    def test_instantiation(self):
-        epub = EPUB(self.epub2file)
-        self.assertNotEqual(epub._filename, None)
-        self.assertEqual(len(epub.opf), 4)
-        self.assertEqual(len(epub.opf[0]), 15)  # metadata items
-        self.assertEqual(len(epub.opf[1]), 49)  # manifest items
-        self.assertEqual(len(epub.opf[2]), 35)   # spine items
-        self.assertEqual(len(epub.opf[3]), 35)   # guide items
-
-    def test_addpart(self):
-        epub = EPUB(self.epub2file, mode='a')
-        part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
-        epub.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
-        self.assertEqual(len(epub.opf[2]), 36)  # spine items
-
-    def test_addpart_noguide(self):
-        epub2 = EPUB(self.epub2file2, mode='a')
-        self.assertEqual(len(epub2.opf), 3)
-        self.assertEqual(len(epub2.info['guide']), 0)
-        num_spine_items = len(epub2.opf[2])
-        part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
-        epub2.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
-        self.assertEqual(len(epub2.opf[2]), num_spine_items + 1)  # spine items
-
-    def test_addmetadata(self):
-        epub = EPUB(self.epub2file, mode='a')
-        epub.info["metadata"]["dc:test"] = "GOOD"
-        epub.info["metadata"]['dc:prova'] = {"token": "token_content"}
-        epub.info["metadata"]['dc:prova'] = "contenuto"
-        self.assertTrue(epub.opf.find('.//{http://purl.org/dc/elements/1.1/}test') is not None)
-        self.assertEqual(epub.info.metadata['dc:test'].text, 'GOOD')
-        self.assertEqual(epub.info["metadata"]['dc:prova'].attrib, {"token": "token_content"})
-        self.assertEqual(epub.info["metadata"]['dc:prova'].text, "contenuto")
-        self.assertEqual(epub.opf.find(".//{http://purl.org/dc/elements/1.1/}prova").text, "contenuto")
-        self.assertEqual(epub.opf.find(".//{http://purl.org/dc/elements/1.1/}prova").attrib["token"], "token_content")
 
 if __name__ == '__main__':
     unittest.main()

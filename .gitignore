@@ -8,5 +8,6 @@ ENV
 .DS_Store
 build
 logs/*
+*.epub
 *.ipynb
 test_assets
