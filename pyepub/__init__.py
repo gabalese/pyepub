@@ -39,7 +39,7 @@ class EPUB(zipfile.ZipFile):
             self.root_folder = os.path.dirname(self._opf_path)
             self.opf = elementtree.fromstring(self.read(self._opf_path))
         except elementtree.XMLSyntaxError:
-            raise InvalidEpub("Ill-formed OPF")
+            raise InvalidEpub
 
         try:
             find = r'.//{0}identifier[@id="{1}"]'.format(NAMESPACES["dc"], self.opf.get("unique-identifier"))
@@ -106,7 +106,7 @@ class AppendeableEPUB(EPUB):
         try:
             self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileobject.getvalue())
         except AttributeError:
-            self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileobject)
+            self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileobject.read())
         finally:
             self.list_of_files.append(
                 {

@@ -36,6 +36,21 @@ class EpubNewTests(unittest.TestCase):
         self.epub_file.close()
 
 
+class EpubTestModes(unittest.TestCase):
+    def test_read_mode_should_be_read(self):
+        self.epubfile = EPUB("test_assets/test_epub.epub", "r")
+        self.assertEquals("r", self.epubfile.mode)
+
+    def test_append_mode_should_be_append(self):
+        self.epubfile = EPUB("test_assets/test_epub.epub", "a")
+        self.assertEquals("a", self.epubfile.mode)
+
+    @unittest.skip("Not implemented")
+    def test_write_mode_should_be_write(self):
+        self.epubfile = EPUB("test_assets/new_file.epub", "w")
+        self.assertEquals("w", self.epubfile.mode)
+
+
 class NoSuchFilename(unittest.TestCase):
     def test_no_such_filename_returns_ioerror(self):
         with self.assertRaises(IOError):
@@ -48,6 +63,14 @@ class NoSuchFilename(unittest.TestCase):
     def test_invalid_epub_file_throws_invalid_epubfile(self):
         with self.assertRaises(InvalidEpub):
             self.epub_file = EPUB("test_assets/invalid_epub.epub", "r")
+
+    def test_ill_formed_opf_should_raise_invalid_epub(self):
+        with self.assertRaises(InvalidEpub):
+            self.epub_file = EPUB("test_assets/illformed_opf.epub", "r")
+
+    def test_epub_must_have_a_id_or_fail(self):
+        with self.assertRaises(InvalidEpub):
+            self.epub_file = EPUB("test_assets/epub_with_no_id.epub", "r")
 
 
 class TestNewEPUB(unittest.TestCase):

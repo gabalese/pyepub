@@ -139,10 +139,11 @@ class Spine(Manifest):
 
 class Guide(Manifest):
     def __init__(self, opf):
+        self.opf = opf
         try:
             self.innerist = [
                 {"href": x.get("href"), "type": x.get("type"), "title": x.get("title")}
-                for x in opf.find("{0}guide".format(NAMESPACES["opf"])) if x.get("href")
+                for x in self.opf.find("{0}guide".format(NAMESPACES["opf"])) if x.get("href")
             ]
         except TypeError:
             self.innerist = []

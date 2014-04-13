@@ -71,6 +71,12 @@ class EpubTests(unittest.TestCase):
         epub.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
         self.assertEqual(len(epub.opf[2]), 36)  # spine items
 
+    def test_addpart_no_position(self):
+        epub = EPUB(self.epub2file, mode='a')
+        part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
+        epub.addpart(part, "testpart.xhtml", "application/xhtml+xml")
+        self.assertEqual(len(epub.opf[2]), 36)  # spine items
+
     def test_add_item(self):
         epub = EPUB(self.epub2file, mode='a')
         len_before = len(epub.opf[1])
