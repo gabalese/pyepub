@@ -12,12 +12,6 @@ class EpubNewTests(unittest.TestCase):
     def setUp(self):
         self.epub_file = EPUB("test_assets/test_epub.epub", mode="r")
 
-    def test_epub_should_expose_filenames(self):
-        self.assertIsInstance(self.epub_file.list_of_files, list)
-
-    def test_list_of_files_must_equal_manifest_contents(self):
-        self.assertEquals(len(self.epub_file.list_of_files), len(self.epub_file.opf[1]))
-
     def test_epub_should_have_a_opf(self):
         self.assertTrue(self.epub_file.opf[0].tag == "{http://www.idpf.org/2007/opf}metadata")
 

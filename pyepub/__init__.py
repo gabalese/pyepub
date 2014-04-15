@@ -27,7 +27,6 @@ class EPUB(zipfile.ZipFile):
 class ReadableEPUB(EPUB):
     def __init__(self, filename, mode="r"):
         super(EPUB, self).__init__(filename, mode)
-        self.list_of_files = [{"path": item, "file": StringIO(self.read(item))} for item in self.filenames]
         try:
             container = self.read("META-INF/container.xml")
             self._opf_path = elementtree.fromstring(container)[0][0].get("full-path")
@@ -90,25 +89,24 @@ class AppendeableEPUB(ReadableEPUB):
     def __init__(self, filename, mode):
         self.mode = mode
         super(AppendeableEPUB, self).__init__(filename, "a")
-        self.list_of_files = [
-            {
-                "path": item,
-                "file": StringIO(self.read(item))
-            } for item in self.filenames
-        ]
+        self.appended_files = []
+        self.starting_files = filter(lambda x: not (x.filename.endswith("opf") or x.filename.endswith("ncx")),
+                                     self.infolist())
 
     def additem(self, fileobject, href, mediatype):
         assert self.mode != "r", "%s is not writable" % self
-        element = elementtree.Element("item",
-                                      attrib={"id": "id_" + str(uuid.uuid4())[:5],
-                                              "href": href, "media-type": mediatype})
+        element = elementtree.Element("item", attrib={
+            "id": "id_" + str(uuid.uuid4())[:5],
+            "href": href,
+            "media-type": mediatype
+        })
 
         try:
             self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileobject.getvalue())
         except AttributeError:
             self.writestr(os.path.join(self.root_folder, element.attrib["href"]), fileobject.read())
         finally:
-            self.list_of_files.append(
+            self.appended_files.append(
                 {
                     "path": os.path.join(self.root_folder, element.attrib["href"]),
                     "file": fileobject
@@ -134,15 +132,14 @@ class AppendeableEPUB(ReadableEPUB):
     def writetodisk(self, filename):
         new_zip_file = zipfile.ZipFile(filename, "w")
         self.__switch_opf_and_ncx()
-        for item in self.list_of_files:
-            new_zip_file.writestr(item["path"], item["file"].read())
+        for item in self.starting_files:
+            new_zip_file.writestr(item, self.read(item.filename))
+        for new_file in self.appended_files:
+            new_zip_file.writestr(new_file["path"], new_file["file"].read())
         new_zip_file.close()
-        super(EPUB, self).close()
 
     def __switch_opf_and_ncx(self):
-        self.list_of_files = filter(lambda x: x["path"] != (self._opf_path or self._ncx_path),
-                                    self.list_of_files)
-        self.list_of_files.extend(
+        self.appended_files.extend(
             [
                 {
                     "path": self._opf_path,
@@ -154,9 +151,6 @@ class AppendeableEPUB(ReadableEPUB):
                 }
             ]
         )
-
-    def close(self):
-        self.writetodisk(self.filename)
 
 
 class EmptyEPUB(EPUB):

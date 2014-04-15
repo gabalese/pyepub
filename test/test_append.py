@@ -1,5 +1,6 @@
 import unittest
 import urllib2
+import os
 from tempfile import NamedTemporaryFile
 from StringIO import StringIO
 from pyepub import EPUB
@@ -8,7 +9,7 @@ from zipfile import ZipFile
 
 class EpubNewTests(unittest.TestCase):
     def setUp(self):
-        remotefile = urllib2.urlopen('http://dev.alese.it/book/urn:uuid:c72fb312-f83e-11e2-82c4-001cc0a62c0b/download')
+        remotefile = open("test_assets/test_epub.epub")
         testfile = NamedTemporaryFile(delete=True)
         testfile.write(remotefile.read())
         testfile.seek(0)
@@ -28,19 +29,39 @@ class EpubNewTests(unittest.TestCase):
         reparse = EPUB(tmp.name, "r")
         self.assertIn("OPS/testpart.xhtml", reparse.filenames)
 
-
-    @unittest.skip("Implementing")
+    @unittest.skip("Implement!")
     def test_write_new_file(self):
-
         fakefile = StringIO()
         output = EPUB(fakefile, "w")
         tmp = NamedTemporaryFile(delete=True)
         part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
         output.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
         output.writetodisk(tmp.name)
-
         rezip = ZipFile(tmp, "r")
         self.assertTrue(len(rezip.filelist) == 5)
+
+    def tearDown(self):
+        self.file.close()
+
+
+class EputTestFileWriteWithClose(unittest.TestCase):
+    def setUp(self):
+        test_file_content = open("test_assets/test_epub.epub","rb")
+        file_on_disk = open("written.epub", "wb")
+        file_on_disk.write(test_file_content.read())
+        file_on_disk.close()
+        self.epub = EPUB("written.epub", "a")
+
+    def test_close_and_write(self):
+        part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
+        self.epub.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
+        self.epub.writetodisk("written_ex.epub")
+        self.check_epub = EPUB("written_ex.epub", "r")
+        self.assertEquals(len(self.epub.infolist()), len(self.check_epub.infolist()))
+
+    def tearDown(self):
+        os.remove("written_ex.epub")
+        os.remove("written.epub")
 
 
 class EpubTests(unittest.TestCase):
