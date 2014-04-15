@@ -73,11 +73,5 @@ class NoSuchFilename(unittest.TestCase):
             self.epub_file = EPUB("test_assets/epub_with_no_id.epub", "r")
 
 
-class TestNewEPUB(unittest.TestCase):
-    @unittest.skip("To implement")
-    def test_new_epub_creation(self):
-        self.epub_file = EPUB("ciao.epub", "w")
-
-
 if __name__ == '__main__':
     unittest.main()

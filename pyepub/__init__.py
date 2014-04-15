@@ -7,9 +7,6 @@ from metadata import NAMESPACES, InfoDict, Metadata, Manifest, Spine, Guide
 
 import lxml.etree as elementtree
 
-TMP = {"opf": None, "ncx": None}
-file_like_object = None
-
 
 class InvalidEpub(Exception):
     pass
@@ -22,10 +19,12 @@ class EPUB(zipfile.ZipFile):
         if mode == "w":
             return super(EPUB, cls).__new__(EmptyEPUB, filename, mode)
         if mode == "r":
-            return super(EPUB, cls).__new__(cls)
+            return super(EPUB, cls).__new__(ReadableEPUB, filename, mode)
         else:
             raise RuntimeError("Invalid mode: {mode}".format(mode=mode))
 
+
+class ReadableEPUB(EPUB):
     def __init__(self, filename, mode="r"):
         super(EPUB, self).__init__(filename, mode)
         self.list_of_files = [{"path": item, "file": StringIO(self.read(item))} for item in self.filenames]
@@ -87,8 +86,9 @@ class EPUB(zipfile.ZipFile):
         return [item.filename for item in self.filelist if not item.filename.endswith("/")]
 
 
-class AppendeableEPUB(EPUB):
+class AppendeableEPUB(ReadableEPUB):
     def __init__(self, filename, mode):
+        self.mode = mode
         super(AppendeableEPUB, self).__init__(filename, "a")
         self.list_of_files = [
             {
@@ -136,8 +136,8 @@ class AppendeableEPUB(EPUB):
         self.__switch_opf_and_ncx()
         for item in self.list_of_files:
             new_zip_file.writestr(item["path"], item["file"].read())
-        else:
-            new_zip_file.close()
+        new_zip_file.close()
+        super(EPUB, self).close()
 
     def __switch_opf_and_ncx(self):
         self.list_of_files = filter(lambda x: x["path"] != (self._opf_path or self._ncx_path),
@@ -155,19 +155,34 @@ class AppendeableEPUB(EPUB):
             ]
         )
 
+    def close(self):
+        self.writetodisk(self.filename)
+
 
 class EmptyEPUB(EPUB):
     def __init__(self, filename, mode):
         super(EmptyEPUB, self).__init__(filename, mode)
-        self.opf_path = "OEBPS/content.opf"  # Define a default folder for contents
+        self._opf_path = "OEBPS/content.opf"  # Define a default folder for contents
         self._ncx_path = "OEBPS/toc.ncx"
         self.root_folder = "OEBPS"
         self.uid = '%s' % uuid.uuid4()
         self.opf = elementtree.fromstring(self.__empty_opf())
         self.ncx = elementtree.fromstring(self.__empty_ncx())
         self.container = self.__empty_container_xml()
+        self.writestr("mimetype", "epub+zip")
+        self.writestr("META-INF/container.xml", self.container)
+        self.writestr(self._opf_path, elementtree.tostring(self.opf))
+        self.writestr(self._ncx_path, elementtree.tostring(self.ncx))
 
         self.list_of_files = [
+            {
+                "path": "mimetype",
+                "file": StringIO("epub+zip")
+            },
+            {
+                "path": "META-INF/container.xml",
+                "file": StringIO(self.container)
+            },
             {
                 "path": self._opf_path,
                 "file": StringIO(elementtree.tostring(self.opf))
@@ -210,7 +225,7 @@ class EmptyEPUB(EPUB):
                                        media-type="application/oebps-package+xml"/>
                         </rootfiles>
                     </container>"""
-        return template % self.opf_path
+        return template % self._opf_path
 
     def __empty_opf(self):
         import datetime
