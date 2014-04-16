@@ -65,10 +65,15 @@ class ReadableEPUB(EPUB):
         return ncx
 
     def __parse_contents(self):
-        return [{"name": i[0][0].text or None,
-                 "src": os.path.join(self.root_folder, i[1].get("src")),
-                 "id": i.get("id")}
-                for i in self.ncx.iter("{0}navPoint".format(NAMESPACES["ncx"]))]
+        try:
+            contents = [{"name": i[0][0].text or None,
+                         "src": os.path.join(self.root_folder, i[1].get("src")),
+                         "id": i.get("id")}
+                        for i in self.ncx.iter("{0}navPoint".format(NAMESPACES["ncx"]))]
+        except IndexError:
+            return []
+        else:
+            return contents
 
     def __build_info_dict(self):
         return InfoDict(
@@ -153,9 +158,9 @@ class AppendeableEPUB(ReadableEPUB):
         )
 
 
-class EmptyEPUB(EPUB):
+class EmptyEPUB(AppendeableEPUB):
     def __init__(self, filename, mode):
-        super(EmptyEPUB, self).__init__(filename, mode)
+        super(EPUB, self).__init__(filename, mode)
         self._opf_path = "OEBPS/content.opf"  # Define a default folder for contents
         self._ncx_path = "OEBPS/toc.ncx"
         self.root_folder = "OEBPS"
@@ -167,25 +172,8 @@ class EmptyEPUB(EPUB):
         self.writestr("META-INF/container.xml", self.container)
         self.writestr(self._opf_path, elementtree.tostring(self.opf))
         self.writestr(self._ncx_path, elementtree.tostring(self.ncx))
-
-        self.list_of_files = [
-            {
-                "path": "mimetype",
-                "file": StringIO("epub+zip")
-            },
-            {
-                "path": "META-INF/container.xml",
-                "file": StringIO(self.container)
-            },
-            {
-                "path": self._opf_path,
-                "file": StringIO(elementtree.tostring(self.opf))
-            },
-            {
-                "path": self._ncx_path,
-                "file": StringIO(elementtree.tostring(self.ncx))
-            }
-        ]
+        self.close()
+        super(EmptyEPUB, self).__init__(filename, mode)
 
     def __empty_ncx(self):
         ncx_tmpl = """<?xml version="1.0" encoding="utf-8"?>

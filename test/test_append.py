@@ -29,7 +29,6 @@ class EpubNewTests(unittest.TestCase):
         reparse = EPUB(tmp.name, "r")
         self.assertIn("OPS/testpart.xhtml", reparse.filenames)
 
-    @unittest.skip("Implement!")
     def test_write_new_file(self):
         fakefile = StringIO()
         output = EPUB(fakefile, "w")
@@ -46,7 +45,7 @@ class EpubNewTests(unittest.TestCase):
 
 class EputTestFileWriteWithClose(unittest.TestCase):
     def setUp(self):
-        test_file_content = open("test_assets/test_epub.epub","rb")
+        test_file_content = open("test_assets/test_epub.epub", "rb")
         file_on_disk = open("written.epub", "wb")
         file_on_disk.write(test_file_content.read())
         file_on_disk.close()

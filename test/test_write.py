@@ -10,6 +10,7 @@ class TestNewEPUB(unittest.TestCase):
 
     def test_new_epub_can_be_written(self):
         self.epub_file.close()
+        self.assertTrue(os.path.exists("new_epub.epub"))
 
     def tearDown(self):
         os.remove("new_epub.epub")

@@ -1,11 +1,6 @@
 import unittest
-import urllib2
-from tempfile import NamedTemporaryFile
-from StringIO import StringIO
 from pyepub import EPUB, InvalidEpub
 from zipfile import ZipFile, BadZipfile
-import lxml.etree as elementtree
-import os
 
 
 class EpubNewTests(unittest.TestCase):
