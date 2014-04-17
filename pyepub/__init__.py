@@ -45,8 +45,7 @@ class ReadableEPUB(EPUB):
         except AttributeError:
             raise InvalidEpub("No unique identifier supplied")
 
-        self.info = self.__build_info_dict()
-
+        self.info = self.info_dict()
         self.__link_spine_elements()
         self.ncx = self.__parse_toc()
         self.contents = self.__parse_contents()
@@ -75,7 +74,7 @@ class ReadableEPUB(EPUB):
         else:
             return contents
 
-    def __build_info_dict(self):
+    def info_dict(self):
         return InfoDict(
             {
                 "metadata": Metadata(self.opf),
@@ -87,7 +86,7 @@ class ReadableEPUB(EPUB):
 
     @property
     def filenames(self):
-        return [item.filename for item in self.filelist if not item.filename.endswith("/")]
+        return (item.filename for item in self.filelist if not item.filename.endswith("/"))
 
 
 class AppendeableEPUB(ReadableEPUB):
@@ -136,14 +135,14 @@ class AppendeableEPUB(ReadableEPUB):
 
     def writetodisk(self, filename):
         new_zip_file = zipfile.ZipFile(filename, "w")
-        self.__switch_opf_and_ncx()
+        self.__add_current_opf_and_ncx()
         for item in self.starting_files:
             new_zip_file.writestr(item, self.read(item.filename))
         for new_file in self.appended_files:
             new_zip_file.writestr(new_file["path"], new_file["file"].read())
         new_zip_file.close()
 
-    def __switch_opf_and_ncx(self):
+    def __add_current_opf_and_ncx(self):
         self.appended_files.extend(
             [
                 {

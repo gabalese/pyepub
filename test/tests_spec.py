@@ -1,4 +1,5 @@
 import unittest
+import os
 from pyepub import EPUB, InvalidEpub
 from zipfile import ZipFile, BadZipfile
 
@@ -34,10 +35,13 @@ class EpubTestModes(unittest.TestCase):
         self.epubfile = EPUB("test_assets/test_epub.epub", "a")
         self.assertEquals("a", self.epubfile.mode)
 
-    @unittest.skip("Not implemented")
     def test_write_mode_should_be_write(self):
         self.epubfile = EPUB("test_assets/new_file.epub", "w")
         self.assertEquals("w", self.epubfile.mode)
+
+    def tearDown(self):
+        if os.path.exists("test_assets/new_file.epub"):
+            os.remove("test_assets/new_file.epub")
 
 
 class NoSuchFilename(unittest.TestCase):

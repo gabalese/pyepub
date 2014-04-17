@@ -47,7 +47,7 @@ class TestEpubToAppend(unittest.TestCase):
         self.assertEquals(self.epub_file.filename, "test_assets/test_epub.epub")
 
     def test_epub_filelist_must_be_present(self):
-        self.assertEquals(len(self.epub_file.filenames), 35)
+        self.assertEquals(len([x for x in self.epub_file.filenames]), 35)
 
     def test_epub_file_must_have_append_mode(self):
         self.assertEquals("a", self.epub_file.mode, )

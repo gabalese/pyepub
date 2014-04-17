@@ -52,13 +52,14 @@ class EputTestFileWriteWithClose(unittest.TestCase):
 
     def test_close_and_write(self):
         part = StringIO('<?xml version="1.0" encoding="utf-8" standalone="yes"?>')
+        length_before = len(self.epub.infolist())
         self.epub.addpart(part, "testpart.xhtml", "application/xhtml+xml", 2)
-        self.epub.writetodisk("written_ex.epub")
-        self.check_epub = EPUB("written_ex.epub", "r")
-        self.assertEquals(len(self.epub.infolist()), len(self.check_epub.infolist()))
+        self.epub.close()
+        self.check_epub = EPUB("written.epub", "r")
+        length_after = len(self.check_epub.infolist())
+        self.assertEquals(length_before+1, length_after)
 
     def tearDown(self):
-        os.remove("written_ex.epub")
         os.remove("written.epub")
 
 
