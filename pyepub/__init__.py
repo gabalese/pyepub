@@ -159,7 +159,7 @@ class AppendeableEPUB(ReadableEPUB):
 
 class EmptyEPUB(AppendeableEPUB):
     def __init__(self, filename, mode):
-        super(EPUB, self).__init__(filename, mode)
+        tmp = zipfile.ZipFile(filename, "w")
         self._opf_path = "OEBPS/content.opf"  # Define a default folder for contents
         self._ncx_path = "OEBPS/toc.ncx"
         self.root_folder = "OEBPS"
@@ -167,11 +167,11 @@ class EmptyEPUB(AppendeableEPUB):
         self.opf = elementtree.fromstring(self.__empty_opf())
         self.ncx = elementtree.fromstring(self.__empty_ncx())
         self.container = self.__empty_container_xml()
-        self.writestr("mimetype", "epub+zip")
-        self.writestr("META-INF/container.xml", self.container)
-        self.writestr(self._opf_path, elementtree.tostring(self.opf))
-        self.writestr(self._ncx_path, elementtree.tostring(self.ncx))
-        self.close()
+        tmp.writestr("mimetype", "application/epub+zip")
+        tmp.writestr("META-INF/container.xml", self.container)
+        tmp.writestr(self._opf_path, elementtree.tostring(self.opf))
+        tmp.writestr(self._ncx_path, elementtree.tostring(self.ncx))
+        tmp.close()
         super(EmptyEPUB, self).__init__(filename, mode)
 
     def __empty_ncx(self):
