@@ -7,7 +7,7 @@ class TestEpubFileOpen(unittest.TestCase):
 
     def setUp(self):
         self.epubfile = NamedTemporaryFile(delete=True)
-        with open("test_assets/uragano.epub") as input_file:
+        with open("test_assets/epub_sample.epub") as input_file:
             self.epubfile.write(input_file.read())
 
     def test_valid_file_should_be_parsed(self):
@@ -21,7 +21,7 @@ class TestEpubFileOpen(unittest.TestCase):
 class TestEpubFileInit(unittest.TestCase):
 
     def setUp(self):
-        self.epubfile = EPUB(open("test_assets/uragano.epub"), "r")
+        self.epubfile = EPUB(open("test_assets/epub_sample.epub"), "r")
 
     def test_epub_file_must_be_in_read_mode(self):
         self.assertEquals("r", self.epubfile.mode)

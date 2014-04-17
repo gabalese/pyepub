@@ -1,5 +1,4 @@
 import unittest
-import urllib2
 import os
 from tempfile import NamedTemporaryFile
 from StringIO import StringIO
@@ -67,12 +66,12 @@ class EpubTests(unittest.TestCase):
     def setUp(self):
         # get a small epub test file as a file-like object
         self.epub2file = NamedTemporaryFile(delete=False)
-        test_file_content = urllib2.urlopen('http://dev.alese.it/book/urn:uuid:d928ac1a-f3c3-11e2-94df-001cc0a62c0b/download')
+        test_file_content = open("test_assets/chrome_yellow.epub", "rb")
         self.epub2file.write(test_file_content.read())
         self.epub2file.seek(0)
         # get an epub with no guide element
         self.epub2file2 = NamedTemporaryFile(delete=False)
-        test_file_content2 = urllib2.urlopen('http://dev.alese.it/book/EO_EB_00001/download')
+        test_file_content2 = open("test_assets/amore_in_ostaggio.epub", "rb")
         self.epub2file2.write(test_file_content2.read())
         self.epub2file2.seek(0)
 
