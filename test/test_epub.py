@@ -7,7 +7,7 @@ class TestEpubFileOpen(unittest.TestCase):
 
     def setUp(self):
         self.epubfile = NamedTemporaryFile(delete=True)
-        with open("test_assets/epub_sample.epub") as input_file:
+        with open("test_assets/test_epub.epub") as input_file:
             self.epubfile.write(input_file.read())
 
     def test_valid_file_should_be_parsed(self):
@@ -21,16 +21,16 @@ class TestEpubFileOpen(unittest.TestCase):
 class TestEpubFileInit(unittest.TestCase):
 
     def setUp(self):
-        self.epubfile = EPUB(open("test_assets/epub_sample.epub"), "r")
+        self.epubfile = EPUB(open("test_assets/test_epub.epub"), "r")
 
     def test_epub_file_must_be_in_read_mode(self):
         self.assertEquals("r", self.epubfile.mode)
 
     def test_epub_file_must_have_title(self):
-        self.assertEqual(u'L\u2019uragano di novembre', self.epubfile.info.metadata["dc:title"].text)
+        self.assertEqual('Il diavolo', self.epubfile.info.metadata["dc:title"].text)
 
     def test_epub_file_must_have_identifier(self):
-        self.assertEqual("9788866322702", self.epubfile.id)
+        self.assertEqual("urn:uuid:c72fb312-f83e-11e2-82c4-001cc0a62c0b'", self.epubfile.id)
 
     def test_epub_file_must_have_identifier_with_attributes(self):
         self.assertIsNot(len(self.epubfile.info.metadata["dc:creator"].attrib), 0)
