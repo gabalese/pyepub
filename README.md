@@ -3,6 +3,7 @@ pyepub
 
 An enhanced python library for dealing with EPUB2 files.
 Based on latest [py-clave](http://github.com/gabalese/py-clave) development release.
+**NOTE**: The development of pyepub is discontinued, every (eventual) effort will be transferred to the excellent [yael](https://github.com/pettarin/yael) instead.
 
 Installation
 ------------
